@@ -22,10 +22,10 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/*.test.cjs
-      - run: node --check app.js && node --check domain.js && node --check content.js && node --check sync/adapter.js
+      - run: node --check site/app.js && node --check site/domain.js && node --check site/content.js && node --check site/sync/adapter.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
       - id: deployment
         uses: actions/deploy-pages@v4

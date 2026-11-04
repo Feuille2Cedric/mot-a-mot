@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const Domain = require('../domain.js');
+const Domain = require('../site/domain.js');
 
 test('canonical compare les réponses sans accents ni ponctuation', () => {
   assert.equal(Domain.canonical('  PÉ-RENNE ! '), 'pe renne');
