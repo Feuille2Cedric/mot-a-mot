@@ -85,21 +85,24 @@
     $('#lookup-status').textContent = 'Recherche dans le Wiktionnaire…';
     try {
       const endpoint = new URL('https://fr.wiktionary.org/w/api.php');
-      endpoint.search = new URLSearchParams({action:'parse', page:clean, prop:'text|displaytitle', format:'json', origin:'*'});
+      endpoint.search = new URLSearchParams({action:'parse', page:clean, prop:'text|displaytitle', redirects:'1', format:'json', origin:'*'});
       const response = await fetch(endpoint, {signal:AbortSignal.timeout(10000)});
       if (!response.ok) throw Error('Service indisponible');
       const payload = await response.json();
       if (payload.error || !payload.parse?.text?.['*']) throw Error('Mot introuvable');
       const parsed = new DOMParser().parseFromString(payload.parse.text['*'], 'text/html');
-      const french = parsed.querySelector('#fr')?.closest('h2');
+      const frenchTitle = parsed.querySelector('#fr')?.closest('h2');
+      const french = frenchTitle?.closest('.mw-heading2') || frenchTitle;
       if (!french) throw Error('Aucune section française');
       const definitions = [];
-      for (let node = french.nextElementSibling; node && node.tagName !== 'H2'; node = node.nextElementSibling) {
-        node.querySelectorAll?.(':scope > ol > li').forEach(item => {
+      for (let node = french.nextElementSibling; node; node = node.nextElementSibling) {
+        if (node.tagName === 'H2' || node.matches?.('.mw-heading2') || node.querySelector?.(':scope > h2')) break;
+        const lists = node.tagName === 'OL' ? [node] : [...(node.querySelectorAll?.(':scope > ol') || [])];
+        lists.forEach(list => list.querySelectorAll(':scope > li').forEach(item => {
           const copy = item.cloneNode(true); copy.querySelectorAll('ol,ul,dl,table,sup,.reference').forEach(child => child.remove());
           const text = copy.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\[[^\]]+\]\s*/g, ' ');
           if (text.length > 12 && text.length < 700 && !definitions.includes(text)) definitions.push(text);
-        });
+        }));
       }
       if (!definitions.length) throw Error('Aucune définition lisible');
       return {id:wordId(clean), term:clean.toLocaleLowerCase('fr-FR'), nature:local?.nature || 'mot français', definition:definitions[0], definitions:definitions.slice(0,3), example:local?.example || '', source:sourceUrl(clean)};

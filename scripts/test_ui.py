@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import time
@@ -33,7 +34,15 @@ try:
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.route('https://fonts.googleapis.com/**', lambda route: route.abort())
         page.route('https://fonts.gstatic.com/**', lambda route: route.abort())
-        page.route('https://fr.wiktionary.org/**', lambda route: route.abort())
+        def wiktionary(route):
+            route.fulfill(
+                status=200,
+                content_type='application/json',
+                body='''{"parse":{"title":"alacrité","text":{"*":"<div class=\\"mw-heading mw-heading2\\"><h2><span id=\\"fr\\">Français</span></h2></div><div class=\\"mw-heading mw-heading3\\"><h3><span id=\\"fr-nom-1\\">Nom commun</span></h3></div><p><b>alacrité</b></p><ol><li><i>(Soutenu)</i> Allégresse, enjouement, entrain.<ul><li>Un exemple à ignorer.</li></ul></li></ol><div class=\\"mw-heading mw-heading2\\"><h2><span id=\\"en\\">Anglais</span></h2></div>"}}}''',
+            )
+
+        if os.environ.get('MOT_TEST_LIVE_WIKTIONARY') != '1':
+            page.route('https://fr.wiktionary.org/**', wiktionary)
         page.route('https://kzdvpbbjvjbxnsamdnao.supabase.co/**', lambda route: route.abort())
         page.goto('http://127.0.0.1:3360/', wait_until='domcontentloaded')
 
@@ -44,10 +53,13 @@ try:
         assert page.locator('#day-progress-count').inner_text() == '3/3'
 
         page.locator('[data-view="search"]').click()
-        page.locator('#word-search').fill('sagace')
+        page.locator('#word-search').fill('alacrité')
         page.locator('#word-search-form').evaluate('form => form.requestSubmit()')
         page.locator('.result-card').wait_for()
-        assert 'Sagace' in page.locator('.result-card').inner_text().title()
+        result = page.locator('.result-card').inner_text()
+        assert 'Alacrité' in result.title()
+        assert 'Allégresse, enjouement, entrain.' in result
+        assert 'Un exemple à ignorer.' not in result
         page.locator('[data-add-result]').click()
 
         page.locator('[data-view="library"]').click()
