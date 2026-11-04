@@ -38,10 +38,11 @@
   }
 
   function dailyItems() {
+    const readableArticles = C.articles.filter(article => article.daily !== false);
     return {
       word: D.daily(C.words, new Date(), 'mot-quotidien'),
       expression: D.daily(C.expressions, new Date(), 'expression-quotidienne'),
-      article: D.daily(C.articles, new Date(), 'article-quotidien')
+      article: D.daily(readableArticles, new Date(), 'article-quotidien')
     };
   }
   function hasWord(term) { return documentState.words.some(item => D.canonical(item.term) === D.canonical(term)); }
@@ -67,7 +68,7 @@
     $('#daily-word').innerHTML = `<h2 class="daily-word-term">${esc(word.term)}</h2><span class="nature">${esc(word.nature)}</span><p class="definition">${esc(word.definition)}</p><p class="example">« ${esc(word.example)} »</p><div class="card-actions"><button class="button secondary ${hasWord(word.term)?'saved':''}" data-add-daily-word>${hasWord(word.term)?'✓ Dans ma bibliothèque':'+ Ajouter à ma bibliothèque'}</button></div>`;
     $('#daily-expression').innerHTML = `<h2 class="daily-expression-term">« ${esc(expression.expression)} »</h2><p class="definition">${esc(expression.meaning)}</p><p class="example">${esc(expression.origin)}</p><div class="card-actions"><button class="button secondary ${hasExpression(expression.id)?'saved':''}" data-add-daily-expression>${hasExpression(expression.id)?'✓ Expression gardée':'+ Garder cette expression'}</button></div>`;
     const note = articleNote(article.id) || {summary:'', comment:'', read:false};
-    $('#daily-article').innerHTML = `<div class="article-topline"><span>La donnée du jour · ${esc(article.theme)}</span><small>${esc(article.source)} · ${esc(article.date)}</small></div><div class="article-layout"><div class="big-stat">${esc(article.stat)}</div><div class="article-copy"><h2>${esc(article.title)}</h2><p>${esc(article.summary)}</p><div class="source-row"><span>${article.minutes} min de lecture</span><a href="${esc(article.url)}" target="_blank" rel="noopener">Lire l’étude originale ↗</a></div><div class="article-notes"><label>Mon résumé<textarea data-article-field="summary" maxlength="12000" placeholder="Ce que je veux retenir…">${esc(note.summary)}</textarea></label><label>Mon commentaire<textarea data-article-field="comment" maxlength="12000" placeholder="Ce que cela m’évoque…">${esc(note.comment)}</textarea></label></div><label class="read-check"><input type="checkbox" data-article-read ${note.read?'checked':''}> Marquer comme lu et le garder dans mes lectures</label></div></div>`;
+    $('#daily-article').innerHTML = `<div class="article-topline"><span>La lecture du jour · ${esc(article.theme)}</span><small>${esc(article.source)} · ${esc(article.publication || 'Publication')} · ${esc(article.date)}</small></div><div class="article-layout"><div class="big-stat">${esc(article.stat)}</div><div class="article-copy"><h2>${esc(article.title)}</h2><p>${esc(article.summary)}</p><div class="source-row"><span>${article.minutes} min de lecture</span><a href="${esc(article.url)}" target="_blank" rel="noopener">Lire l’analyse complète ↗</a></div><div class="article-notes"><label>Mon résumé<textarea data-article-field="summary" maxlength="12000" placeholder="Ce que je veux retenir…">${esc(note.summary)}</textarea></label><label>Mon commentaire<textarea data-article-field="comment" maxlength="12000" placeholder="Ce que cela m’évoque…">${esc(note.comment)}</textarea></label></div><label class="read-check"><input type="checkbox" data-article-read ${note.read?'checked':''}> Marquer comme lu et le garder dans mes lectures</label></div></div>`;
     renderProgress();
   }
 

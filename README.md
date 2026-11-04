@@ -28,7 +28,7 @@ Attendre **✓ Synchronisé** avant de changer d’appareil ou d’effacer les d
 
 - Le [Wiktionnaire](https://fr.wiktionary.org/) fournit les définitions recherchées en ligne. Le texte est converti en contenu brut avant affichage ; aucun HTML distant n’est injecté dans la page.
 - Un petit lexique intégré permet de continuer à consulter les mots du jeu lorsque le réseau ou le Wiktionnaire est indisponible.
-- Les capsules quotidiennes sont un corpus éditorial local. Chaque carte indique sa date, son thème et un lien direct vers la publication [INSEE](https://www.insee.fr/) utilisée.
+- Les lectures quotidiennes sont choisies uniquement parmi les formats éditoriaux `Insee Première` et `Insee Focus`, qui proposent une analyse rédigée, des graphiques et du contexte. Les simples fiches de chiffres et tableaux restent associées aux anciennes notes, mais ne sont plus proposées dans la rotation.
 - Le choix quotidien est déterministe selon la date locale : un même appareil affiche le même contenu pendant toute la journée.
 
 Mot à mot n’aspire pas automatiquement de nouveaux articles et ne présente pas ses résumés comme des publications de l’INSEE. La source primaire reste accessible depuis chaque carte.
