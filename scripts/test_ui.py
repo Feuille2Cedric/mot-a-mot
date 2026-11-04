@@ -92,8 +92,28 @@ try:
         assert page.locator('#library-list').get_by_text('La première, mère de toutes les autres, est la violence institutionnelle', exact=False).is_visible()
 
         page.locator('[data-view="quiz"]').click()
+        unknown_definition = page.locator('#quiz-definition').inner_text()
+        unknown_answer = page.evaluate(
+            "definition => MotContent.words.find(word => word.definition === definition)?.term || MotApp.read().words.find(word => word.definition === definition)?.term",
+            unknown_definition,
+        )
+        assert unknown_answer
+        attempts_before_give_up = int(page.locator('#quiz-total').inner_text())
+        assert page.locator('#quiz-give-up').is_visible()
+        page.screenshot(path=str(artifacts / 'quiz-give-up-before.png'), full_page=True)
+        page.locator('#quiz-give-up').click()
+        assert unknown_answer in page.locator('#quiz-feedback').inner_text()
+        assert 'Pas de souci' in page.locator('#quiz-feedback').inner_text()
+        assert 'wrong' in page.locator('#quiz-feedback').get_attribute('class')
+        assert page.locator('#quiz-answer').is_disabled()
+        assert page.locator('#quiz-give-up').is_hidden()
+        assert page.locator('#quiz-save').is_visible()
+        assert int(page.locator('#quiz-total').inner_text()) == attempts_before_give_up + 1
+        page.screenshot(path=str(artifacts / 'quiz-give-up.png'), full_page=True)
+        page.locator('#quiz-next').click()
+
         added_from_quiz = False
-        for _ in range(5):
+        for _ in range(4):
             definition = page.locator('#quiz-definition').inner_text()
             expected = page.evaluate(
                 "definition => MotContent.words.find(word => word.definition === definition)?.term",

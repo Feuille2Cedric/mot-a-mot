@@ -231,20 +231,20 @@
     $('#quiz-position').textContent = `${quizIndex+1} / ${quizDeck.length}`;
     $('#quiz-definition').textContent = word.definition;
     $('#quiz-nature').textContent = word.nature || 'mot français';
-    $('#quiz-answer').value=''; $('#quiz-answer').disabled=false; $('#quiz-form button').disabled=false;
+    $('#quiz-answer').value=''; $('#quiz-answer').disabled=false; $('#quiz-form button[type="submit"]').disabled=false; $('#quiz-give-up').hidden=false;
     $('#quiz-feedback').textContent=''; $('#quiz-feedback').className='quiz-feedback'; $('#quiz-save').hidden=true; $('#quiz-next').hidden=true;
   }
   function renderQuizStats() { const stats=D.quizStats(documentState.quizAnswers); $('#quiz-rate').textContent=`${stats.rate} %`; $('#quiz-streak').textContent=stats.streak; $('#quiz-total').textContent=stats.attempts; }
-  function answerQuiz() {
+  function answerQuiz(giveUp = false) {
     if (answered) return; answered=true;
-    const word=quizDeck[quizIndex], value=$('#quiz-answer').value, correct=D.canonical(value)===D.canonical(word.term);
+    const word=quizDeck[quizIndex], value=$('#quiz-answer').value, correct=!giveUp&&D.canonical(value)===D.canonical(word.term);
     documentState.quizAnswers.unshift({id:makeId('answer'),term:word.term,correct,at:now()});
     if (documentState.quizAnswers.length>2000) documentState.quizAnswers.length=2000;
     const saved=documentState.words.find(item=>D.canonical(item.term)===D.canonical(word.term));
     if(saved){saved.updated=now();if(correct)saved.learned=true;}
     save(); renderQuizStats();
-    $('#quiz-feedback').textContent=correct?`Exact — ${word.term}.`:`La réponse était « ${word.term} ». `;
-    $('#quiz-feedback').classList.add(correct?'correct':'wrong'); $('#quiz-answer').disabled=true; $('#quiz-form button').disabled=true; renderQuizSave(word); $('#quiz-next').hidden=false;
+    $('#quiz-feedback').textContent=correct?`Exact — ${word.term}.`:giveUp?`Pas de souci — la réponse était « ${word.term} ». `:`La réponse était « ${word.term} ». `;
+    $('#quiz-feedback').classList.add(correct?'correct':'wrong'); $('#quiz-answer').disabled=true; $('#quiz-form button[type="submit"]').disabled=true; $('#quiz-give-up').hidden=true; renderQuizSave(word); $('#quiz-next').hidden=false;
   }
 
   function bindEvents() {
@@ -263,6 +263,7 @@
     $('#library-list').addEventListener('input',event=>{if(!event.target.matches('[data-note]'))return;const item=(documentState[libraryTab]||[]).find(value=>value.id===event.target.closest('[data-id]').dataset.id);if(item){item.note=event.target.value;item.updated=now();save();}});
     $('#library-list').addEventListener('click',event=>{const card=event.target.closest('[data-id]');if(!card)return;const collection=libraryTab==='articles'?documentState.articleNotes:documentState[libraryTab];const item=collection.find(value=>value.id===card.dataset.id);if(!item)return;if(event.target.matches('[data-learned]')){item.learned=!item.learned;item.updated=now();save();renderLibrary();}if(event.target.matches('[data-delete]')){const name=libraryTab==='articles'?'articleNotes':libraryTab;documentState[name]=documentState[name].filter(value=>value.id!==item.id);save();renderLibrary();renderHome();}});
     $('#quiz-form').addEventListener('submit',event=>{event.preventDefault();answerQuiz();});
+    $('#quiz-give-up').addEventListener('click',()=>answerQuiz(true));
     $('#quiz-save').addEventListener('click',()=>{const word=quizDeck[quizIndex];if(word&&!hasWord(word.term))addWord(word);if(word)renderQuizSave(word);});
     $('#quiz-next').addEventListener('click',()=>{quizIndex++;if(quizIndex>=quizDeck.length){quizDeck=quizPool();quizIndex=0;toast('Nouvelle série de cinq mots.');}renderQuiz();$('#quiz-answer').focus();});
   }
