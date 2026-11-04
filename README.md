@@ -2,7 +2,7 @@
 
 Carnet personnel de vocabulaire et de curiosité, en français. Un mot, une expression et une donnée à découvrir chaque jour, avec une bibliothèque privée et un jeu de définitions.
 
-**Site prévu : https://feuille2cedric.github.io/mot-a-mot/**
+**Site : https://feuille2cedric.github.io/mot-a-mot/**
 
 ## Utilisation
 
