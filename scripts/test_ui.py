@@ -62,10 +62,29 @@ try:
         assert 'Un exemple à ignorer.' not in result
         page.locator('[data-add-result]').click()
 
+        page.locator('[data-lookup-tab="expression"]').click()
+        page.locator('#expression-search').fill('La violence institutionnelle est mère de toutes les autres')
+        page.locator('#expression-search-form').evaluate('form => form.requestSubmit()')
+        page.locator('[data-add-expression-result]').wait_for()
+        expression_result = page.locator('.result-card').inner_text()
+        assert 'La première, mère de toutes les autres, est la violence institutionnelle' in expression_result
+        assert 'Dom Hélder Câmara' in expression_result
+        artifacts = ROOT / 'test-artifacts'
+        artifacts.mkdir(exist_ok=True)
+        page.screenshot(path=str(artifacts / 'expression-search.png'), full_page=True)
+        page.locator('[data-add-expression-result]').click()
+
+        page.locator('#expression-search').fill('Une formule personnelle encore inconnue')
+        page.locator('#expression-search-form').evaluate('form => form.requestSubmit()')
+        assert page.locator('[data-expression-meaning]').is_visible()
+        assert 'pas encore dans le carnet' in page.locator('#lookup-status').inner_text()
+
         page.locator('[data-view="library"]').click()
         assert page.locator('#words-count').inner_text() == '2'
-        assert page.locator('#expressions-count').inner_text() == '1'
+        assert int(page.locator('#expressions-count').inner_text()) >= 1
         assert page.locator('#articles-count').inner_text() == '1'
+        page.locator('[data-library-tab="expressions"]').click()
+        assert page.locator('#library-list').get_by_text('La première, mère de toutes les autres, est la violence institutionnelle', exact=False).is_visible()
 
         page.locator('[data-view="quiz"]').click()
         definition = page.locator('#quiz-definition').inner_text()
@@ -84,11 +103,10 @@ try:
         assert 'Exact' in page.locator('#quiz-feedback').inner_text()
 
         page.reload(wait_until='domcontentloaded')
-        assert page.locator('#nav-count').inner_text() == '3'
+        saved_total = page.evaluate('MotApp.read().words.length + MotApp.read().expressions.length')
+        assert page.locator('#nav-count').inner_text() == str(saved_total)
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
 
-        artifacts = ROOT / 'test-artifacts'
-        artifacts.mkdir(exist_ok=True)
         page.screenshot(path=str(artifacts / 'desktop.png'), full_page=True)
         page.set_viewport_size({'width': 390, 'height': 844})
         page.reload(wait_until='domcontentloaded')
@@ -96,7 +114,7 @@ try:
         page.screenshot(path=str(artifacts / 'mobile.png'), full_page=True)
         assert not errors, errors
 
-        print('UI PASS: daily ritual, offline lookup, library, quiz, reload, desktop and mobile. No JS errors.')
+        print('UI PASS: daily ritual, word and expression lookup, library, quiz, reload, desktop and mobile. No JS errors.')
         browser.close()
 finally:
     server.terminate()

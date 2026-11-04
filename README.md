@@ -7,6 +7,7 @@ Carnet personnel de vocabulaire et de curiosité, en français. Un mot, une expr
 ## Utilisation
 
 - Chercher un mot français, lire ses définitions puis l’ajouter à sa bibliothèque.
+- Rechercher une expression, un proverbe ou une citation même avec une formulation approchante. Une expression absente du corpus peut être gardée avec une explication personnelle.
 - Garder le mot et l’expression du jour, écrire une note personnelle et indiquer ce qui est acquis ou reste à revoir.
 - Lire une capsule statistique issue d’une publication officielle, ouvrir sa source, rédiger un résumé ou un commentaire et la conserver dans ses lectures.
 - Lancer un quiz de cinq définitions. Les mots enregistrés sont proposés en priorité ; les accents et la ponctuation ne pénalisent pas la réponse.
@@ -27,6 +28,7 @@ Attendre **✓ Synchronisé** avant de changer d’appareil ou d’effacer les d
 ## Définitions et lectures
 
 - Le [Wiktionnaire](https://fr.wiktionary.org/) fournit les définitions recherchées en ligne. Le texte est converti en contenu brut avant affichage ; aucun HTML distant n’est injecté dans la page.
+- Les expressions et citations sont recherchées dans le corpus éditorial intégré. La fiche de Dom Hélder Câmara sur les trois violences est attribuée et reliée à une source consultable. Les ajouts personnels restent identifiés comme tels.
 - Un petit lexique intégré permet de continuer à consulter les mots du jeu lorsque le réseau ou le Wiktionnaire est indisponible.
 - Les lectures quotidiennes sont choisies uniquement parmi les formats éditoriaux `Insee Première` et `Insee Focus`, qui proposent une analyse rédigée, des graphiques et du contexte. Les simples fiches de chiffres et tableaux restent associées aux anciennes notes, mais ne sont plus proposées dans la rotation.
 - Le choix quotidien est déterministe selon la date locale : un même appareil affiche le même contenu pendant toute la journée.

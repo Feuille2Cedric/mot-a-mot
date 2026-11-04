@@ -26,6 +26,7 @@
   function toast(message) { const node = $('#toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => node.hidden = true, 2600); }
   function sourceUrl(term) { return `https://fr.wiktionary.org/wiki/${encodeURIComponent(term.replace(/ /g, '_'))}`; }
   function wordId(term) { return `word:${D.canonical(term).replace(/ /g, '-')}`; }
+  function expressionId(value) { return `expression:personnelle:${D.canonical(value).replace(/ /g, '-').slice(0, 160)}`; }
 
   function showView(name) {
     activeView = name;
@@ -46,7 +47,11 @@
     };
   }
   function hasWord(term) { return documentState.words.some(item => D.canonical(item.term) === D.canonical(term)); }
-  function hasExpression(id) { return documentState.expressions.some(item => item.id === id); }
+  function hasExpression(value) {
+    const id = typeof value === 'string' ? value : value?.id;
+    const expression = typeof value === 'object' ? D.canonical(value?.expression) : '';
+    return documentState.expressions.some(item => item.id === id || (expression && D.canonical(item.expression) === expression));
+  }
   function articleNote(id) { return documentState.articleNotes.find(item => item.id === id); }
 
   function addWord(word) {
@@ -56,10 +61,10 @@
     save(); renderHome(); if (activeView === 'search') renderLookup(word); toast('Mot ajouté à ta bibliothèque.');
   }
   function addExpression(expression) {
-    if (hasExpression(expression.id)) return toast('Cette expression est déjà gardée.');
+    if (hasExpression(expression)) return toast('Cette expression est déjà gardée.');
     const stamp = now();
     documentState.expressions.unshift({ ...expression, note: '', learned: false, addedAt: stamp, updated: stamp });
-    save(); renderHome(); toast('Expression ajoutée à ta bibliothèque.');
+    save(); renderHome(); if (activeView === 'search') renderExpressionLookup(expression); toast('Expression ajoutée à ta bibliothèque.');
   }
 
   function renderHome() {
@@ -119,6 +124,59 @@
     $('[data-add-result]').onclick = () => addWord(word);
   }
 
+  function expressionScore(expression, query) {
+    const target = D.canonical([expression.expression, expression.author, expression.meaning].filter(Boolean).join(' '));
+    const clean = D.canonical(query);
+    if (!clean) return 0;
+    if (target.includes(clean) || clean.includes(D.canonical(expression.expression))) return 1;
+    const queryTokens = new Set(clean.split(' ').filter(token => token.length > 2));
+    const targetTokens = new Set(target.split(' ').filter(token => token.length > 2));
+    if (!queryTokens.size) return 0;
+    const shared = [...queryTokens].filter(token => targetTokens.has(token)).length;
+    return (shared / queryTokens.size * .75) + (shared / Math.max(targetTokens.size, 1) * .25);
+  }
+  function findExpression(term) {
+    return C.expressions
+      .map(expression => ({ expression, score: expressionScore(expression, term) }))
+      .sort((left, right) => right.score - left.score)[0];
+  }
+  function renderExpressionLookup(expression) {
+    const kind = expression.type === 'citation' ? 'Citation' : 'Expression';
+    $('#lookup-status').textContent = `${kind} trouvée dans le carnet.`;
+    const source = expression.sourceUrl ? `<span class="result-source">Source : <a href="${esc(expression.sourceUrl)}" target="_blank" rel="noopener">${esc(expression.sourceLabel || expression.author || 'consulter')} ↗</a></span>` : '';
+    $('#lookup-result').innerHTML = `<article class="result-card"><span class="nature">${kind}${expression.author ? ` · ${esc(expression.author)}` : ''}</span><h3>« ${esc(expression.expression)} »</h3><p class="definition">${esc(expression.meaning)}</p>${expression.origin ? `<p class="origin">${esc(expression.origin)}</p>` : ''}${expression.example ? `<p class="example">${esc(expression.example)}</p>` : ''}<div class="card-actions"><button class="button secondary ${hasExpression(expression)?'saved':''}" data-add-expression-result>${hasExpression(expression)?'✓ Dans ma bibliothèque':'+ Ajouter à ma bibliothèque'}</button>${source}</div></article>`;
+    $('[data-add-expression-result]').onclick = () => addExpression(expression);
+  }
+  function renderExpressionDraft(value) {
+    const expression = value.trim();
+    $('#lookup-status').textContent = 'Cette formulation n’est pas encore dans le carnet. Tu peux tout de même la garder et l’expliquer avec tes mots.';
+    const wikiquote = `https://fr.wikiquote.org/w/index.php?search=${encodeURIComponent(expression)}`;
+    $('#lookup-result').innerHTML = `<article class="result-card"><span class="nature">Expression personnelle à documenter</span><h3>« ${esc(expression)} »</h3><div class="manual-expression"><label>Ce que cette expression signifie pour moi<textarea data-expression-meaning maxlength="12000" placeholder="Ajoute une explication ou le contexte dans lequel tu l’as trouvée…"></textarea></label></div><div class="card-actions"><button class="button secondary" data-save-expression-draft>+ Garder dans ma bibliothèque</button><span class="result-source"><a href="${esc(wikiquote)}" target="_blank" rel="noopener">Vérifier sur Wikiquote ↗</a></span></div></article>`;
+    $('[data-save-expression-draft]').onclick = () => {
+      const meaning = $('[data-expression-meaning]').value.trim();
+      if (!meaning) { $('#lookup-status').textContent = 'Ajoute d’abord une courte explication pour pouvoir garder cette expression.'; $('[data-expression-meaning]').focus(); return; }
+      addExpression({ id:expressionId(expression), expression, meaning, origin:'Ajout personnel', type:'expression' });
+    };
+  }
+  function lookupExpression(term) {
+    const clean = term.trim();
+    if (clean.length < 3) throw Error('Écris au moins trois caractères pour chercher une expression.');
+    const result = findExpression(clean);
+    if (result?.score >= .48) renderExpressionLookup(result.expression);
+    else renderExpressionDraft(clean);
+  }
+  function setLookupMode(mode) {
+    const expressionMode = mode === 'expression';
+    $('#word-search-form').hidden = expressionMode;
+    $('#expression-search-form').hidden = !expressionMode;
+    $('[data-word-suggestions]').hidden = expressionMode;
+    $('[data-expression-suggestions]').hidden = !expressionMode;
+    $$('[data-lookup-tab]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.lookupTab === mode)));
+    $('#lookup-status').textContent = '';
+    $('#lookup-result').innerHTML = '';
+    $(expressionMode ? '#expression-search' : '#word-search').focus();
+  }
+
   function renderCounts() {
     $('#nav-count').textContent = documentState.words.length + documentState.expressions.length;
     $('#words-count').textContent = documentState.words.length;
@@ -144,7 +202,7 @@
       list.innerHTML = `<div class="empty-state"><strong>${labels[libraryTab][0]}</strong><p>${labels[libraryTab][1]}</p></div>`; return;
     }
     if (libraryTab === 'words') list.innerHTML = items.map(item => `<article class="library-item" data-id="${esc(item.id)}"><span class="nature">${esc(item.nature)}</span><h3>${esc(item.term)}</h3><p>${esc(item.definition)}</p><textarea data-note maxlength="12000" placeholder="Ma note personnelle…">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?'✓ Acquis':'À revoir'}</button><a href="${esc(item.source)}" target="_blank" rel="noopener">Source ↗</a><button data-delete>Supprimer</button></div></article>`).join('');
-    if (libraryTab === 'expressions') list.innerHTML = items.map(item => `<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">Expression</span><h3>« ${esc(item.expression)} »</h3><p>${esc(item.meaning)}</p><textarea data-note maxlength="12000" placeholder="Ma note personnelle…">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?'✓ Acquise':'À revoir'}</button><button data-delete>Supprimer</button></div></article>`).join('');
+    if (libraryTab === 'expressions') list.innerHTML = items.map(item => `<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${item.type === 'citation' ? 'Citation' : 'Expression'}${item.author ? ` · ${esc(item.author)}` : ''}</span><h3>« ${esc(item.expression)} »</h3><p>${esc(item.meaning)}</p>${item.origin ? `<p class="example">${esc(item.origin)}</p>` : ''}<textarea data-note maxlength="12000" placeholder="Ma note personnelle…">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?'✓ Acquise':'À revoir'}</button>${item.sourceUrl ? `<a href="${esc(item.sourceUrl)}" target="_blank" rel="noopener">Source ↗</a>` : ''}<button data-delete>Supprimer</button></div></article>`).join('');
     if (libraryTab === 'articles') list.innerHTML = items.map(item => `<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${esc(item.source)} · ${esc(item.theme)}</span><h3>${esc(item.title)}</h3><p>${esc(item.summary)}</p>${item.comment?`<p class="example">« ${esc(item.comment)} »</p>`:''}<div class="library-item-actions"><button>${item.read?'✓ Lu':'Note en cours'}</button><a href="${esc(item.url)}" target="_blank" rel="noopener">Relire ↗</a><button data-delete>Supprimer mes notes</button></div></article>`).join('');
   }
 
@@ -188,7 +246,10 @@
     $('#home-view').addEventListener('click',event=>{const daily=dailyItems();if(event.target.closest('[data-add-daily-word]'))addWord(daily.word);if(event.target.closest('[data-add-daily-expression]'))addExpression(daily.expression);});
     $('#daily-article').addEventListener('input',event=>{const article=dailyItems().article;if(event.target.matches('[data-article-field]'))upsertArticle(article,{[event.target.dataset.articleField]:event.target.value});if(event.target.matches('[data-article-read]'))upsertArticle(article,{read:event.target.checked});});
     $('#word-search-form').addEventListener('submit',async event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{renderLookup(await lookup($('#word-search').value));}catch(error){$('#lookup-status').textContent=error.message;}});
-    $$('.search-suggestions button').forEach(button=>button.addEventListener('click',()=>{$('#word-search').value=button.dataset.suggestion;$('#word-search-form').requestSubmit();}));
+    $('#expression-search-form').addEventListener('submit',event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{lookupExpression($('#expression-search').value);}catch(error){$('#lookup-status').textContent=error.message;}});
+    $$('[data-lookup-tab]').forEach(button=>button.addEventListener('click',()=>setLookupMode(button.dataset.lookupTab)));
+    $$('[data-word-suggestion]').forEach(button=>button.addEventListener('click',()=>{$('#word-search').value=button.dataset.wordSuggestion;$('#word-search-form').requestSubmit();}));
+    $$('[data-expression-suggestion]').forEach(button=>button.addEventListener('click',()=>{$('#expression-search').value=button.dataset.expressionSuggestion;$('#expression-search-form').requestSubmit();}));
     $$('.library-tabs button').forEach(button=>button.addEventListener('click',()=>{libraryTab=button.dataset.libraryTab;$$('.library-tabs button').forEach(item=>item.setAttribute('aria-selected',String(item===button)));renderLibrary();}));
     $('#library-search').addEventListener('input',renderLibrary);
     $('#library-list').addEventListener('input',event=>{if(!event.target.matches('[data-note]'))return;const item=(documentState[libraryTab]||[]).find(value=>value.id===event.target.closest('[data-id]').dataset.id);if(item){item.note=event.target.value;item.updated=now();save();}});

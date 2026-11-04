@@ -57,16 +57,25 @@
     <section id="search-view" class="view" hidden>
       <div class="section-intro">
         <p class="eyebrow">Le dictionnaire vivant</p>
-        <h2>Un mot t’échappe ?</h2>
-        <p>Cherche sa définition, puis garde-le pour le revoir plus tard.</p>
+        <h2>Un mot ou une expression t’échappe ?</h2>
+        <p>Cherche une définition, une expression ou une citation, puis garde-la pour la revoir plus tard.</p>
+      </div>
+      <div class="lookup-tabs" role="tablist" aria-label="Type de recherche">
+        <button type="button" role="tab" data-lookup-tab="word" aria-selected="true">Mot</button>
+        <button type="button" role="tab" data-lookup-tab="expression" aria-selected="false">Expression ou citation</button>
       </div>
       <form id="word-search-form" class="lookup-form">
         <label><span>Mot français</span><input id="word-search" type="search" required maxlength="80" autocomplete="off" placeholder="Ex. perspicace"></label>
         <button class="button primary" type="submit">Chercher</button>
       </form>
+      <form id="expression-search-form" class="lookup-form" hidden>
+        <label><span>Expression, proverbe ou citation</span><input id="expression-search" type="search" required maxlength="240" autocomplete="off" placeholder="Ex. La violence institutionnelle est mère de toutes les autres"></label>
+        <button class="button primary" type="submit">Chercher</button>
+      </form>
       <p id="lookup-status" class="status" role="status"></p>
       <div id="lookup-result"></div>
-      <div class="search-suggestions"><span>À essayer</span><button data-suggestion="sagace">sagace</button><button data-suggestion="liminaire">liminaire</button><button data-suggestion="ineffable">ineffable</button></div>
+      <div class="search-suggestions" data-word-suggestions><span>À essayer</span><button data-word-suggestion="sagace">sagace</button><button data-word-suggestion="liminaire">liminaire</button><button data-word-suggestion="ineffable">ineffable</button></div>
+      <div class="search-suggestions" data-expression-suggestions hidden><span>À essayer</span><button data-expression-suggestion="appeler un chat un chat">appeler un chat un chat</button><button data-expression-suggestion="violence institutionnelle">violence institutionnelle</button></div>
     </section>
 
     <section id="library-view" class="view" hidden>

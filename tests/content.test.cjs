@@ -6,6 +6,15 @@ require('../site/content.js');
 
 const articles = global.window.MotContent.articles;
 const dailyArticles = articles.filter(article => article.daily !== false);
+const expressions = global.window.MotContent.expressions;
+
+test('la citation sur la violence institutionnelle est sourcée et attribuée', () => {
+  const citation = expressions.find(item => item.id === 'expression:trois-violences-helder-camara');
+  assert.ok(citation);
+  assert.equal(citation.author, 'Dom Hélder Câmara');
+  assert.match(citation.expression, /mère de toutes les autres/i);
+  assert.match(citation.sourceUrl, /^https:\/\//);
+});
 
 test('la rotation quotidienne ne contient que des publications éditoriales', () => {
   assert.ok(dailyArticles.length >= 10);
