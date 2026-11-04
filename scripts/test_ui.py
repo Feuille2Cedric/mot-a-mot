@@ -92,20 +92,43 @@ try:
         assert page.locator('#library-list').get_by_text('La première, mère de toutes les autres, est la violence institutionnelle', exact=False).is_visible()
 
         page.locator('[data-view="quiz"]').click()
-        definition = page.locator('#quiz-definition').inner_text()
-        expected = page.evaluate(
-            "definition => MotContent.words.find(word => word.definition === definition)?.term",
-            definition,
-        )
-        if not expected:
+        added_from_quiz = False
+        for _ in range(5):
+            definition = page.locator('#quiz-definition').inner_text()
             expected = page.evaluate(
-                "definition => MotApp.read().words.find(word => word.definition === definition)?.term",
+                "definition => MotContent.words.find(word => word.definition === definition)?.term",
                 definition,
             )
-        assert expected
-        page.locator('#quiz-answer').fill(expected)
-        page.locator('#quiz-form').evaluate('form => form.requestSubmit()')
-        assert 'Exact' in page.locator('#quiz-feedback').inner_text()
+            if not expected:
+                expected = page.evaluate(
+                    "definition => MotApp.read().words.find(word => word.definition === definition)?.term",
+                    definition,
+                )
+            assert expected
+            already_saved = page.evaluate(
+                "term => MotApp.read().words.some(word => MotDomain.canonical(word.term) === MotDomain.canonical(term))",
+                expected,
+            )
+            page.locator('#quiz-answer').fill(expected)
+            page.locator('#quiz-form').evaluate('form => form.requestSubmit()')
+            assert 'Exact' in page.locator('#quiz-feedback').inner_text()
+            assert page.locator('#quiz-save').is_visible()
+            if not already_saved:
+                before_quiz_add = page.evaluate('MotApp.read().words.length')
+                assert 'Ajouter ce mot' in page.locator('#quiz-save').inner_text()
+                page.locator('#quiz-save').click()
+                assert page.evaluate('MotApp.read().words.length') == before_quiz_add + 1
+                assert page.locator('#quiz-save').is_disabled()
+                assert 'Dans ma bibliothèque' in page.locator('#quiz-save').inner_text()
+                page.screenshot(path=str(artifacts / 'quiz-add.png'), full_page=True)
+                page.set_viewport_size({'width': 390, 'height': 844})
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+                page.screenshot(path=str(artifacts / 'quiz-add-mobile.png'), full_page=True)
+                page.set_viewport_size({'width': 1440, 'height': 1000})
+                added_from_quiz = True
+                break
+            page.locator('#quiz-next').click()
+        assert added_from_quiz
 
         page.reload(wait_until='domcontentloaded')
         saved_total = page.evaluate('MotApp.read().words.length + MotApp.read().expressions.length')

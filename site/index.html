@@ -8,14 +8,14 @@
   <title>Mot à mot — Chaque jour compte.</title>
   <link rel="icon" href="favicon.svg">
   <link rel="stylesheet" href="sync/sync.css">
-  <link rel="stylesheet" href="style.css?v=20261104-2">
+  <link rel="stylesheet" href="style.css?v=20261104-3">
   <script src="sync/supabase.js" defer></script>
   <script src="sync/config.js" defer></script>
   <script src="sync/auth.js" defer></script>
   <script src="sync/sync.js" defer></script>
   <script src="content.js?v=20261104-2" defer></script>
   <script src="domain.js" defer></script>
-  <script src="app.js?v=20261104-2" defer></script>
+  <script src="app.js?v=20261104-3" defer></script>
   <script src="sync/adapter.js" defer></script>
 </head>
 <body>
@@ -105,7 +105,10 @@
           <p id="quiz-nature" class="quiz-nature"></p>
           <form id="quiz-form"><label for="quiz-answer">Quel est ce mot ?</label><div><input id="quiz-answer" autocomplete="off" required><button class="button primary">Valider</button></div></form>
           <div id="quiz-feedback" class="quiz-feedback" role="status"></div>
-          <button id="quiz-next" class="button secondary" type="button" hidden>Mot suivant →</button>
+          <div class="quiz-actions">
+            <button id="quiz-save" class="button secondary" type="button" hidden>+ Ajouter ce mot à ma bibliothèque</button>
+            <button id="quiz-next" class="button secondary" type="button" hidden>Mot suivant →</button>
+          </div>
         </article>
       </div>
     </section>
