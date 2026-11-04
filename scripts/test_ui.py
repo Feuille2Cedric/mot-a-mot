@@ -53,6 +53,11 @@ try:
         assert page.locator('#day-progress-count').inner_text() == '3/3'
 
         page.locator('[data-view="search"]').click()
+        tab_style = page.locator('[data-lookup-tab="word"]').evaluate(
+            "button => ({border: getComputedStyle(button).borderTopWidth, background: getComputedStyle(button).backgroundColor})"
+        )
+        assert tab_style['border'] == '0px'
+        assert tab_style['background'] == 'rgba(0, 0, 0, 0)'
         page.locator('#word-search').fill('alacrité')
         page.locator('#word-search-form').evaluate('form => form.requestSubmit()')
         page.locator('.result-card').wait_for()
