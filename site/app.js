@@ -1,274 +1,76 @@
 (() => {
   'use strict';
-  const STORAGE_KEY = 'mot-a-mot-v1';
-  const $ = selector => document.querySelector(selector);
-  const $$ = selector => [...document.querySelectorAll(selector)];
-  const C = window.MotContent;
-  const D = window.MotDomain;
-  let documentState = load();
-  let activeView = 'home';
-  let libraryTab = 'words';
-  let quizDeck = [];
-  let quizIndex = 0;
-  let answered = false;
-  let toastTimer;
+  const STORAGE_KEY = 'mot-a-mot-v1', LOCALE_KEY = 'mot-a-mot-locale';
+  const $ = selector => document.querySelector(selector), $$ = selector => [...document.querySelectorAll(selector)];
+  const C = window.MotContent, CE = window.MotContentEnglish, D = window.MotDomain;
+  let locale = localStorage.getItem(LOCALE_KEY) === 'en' ? 'en' : 'fr';
+  let documentState = load(), activeView = 'home', libraryTab = 'words', lookupMode = 'word', quizDeck = [], quizIndex = 0, answered = false, toastTimer;
 
-  function load() {
-    try { const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || D.empty(); return D.validate(value); }
-    catch { return D.empty(); }
-  }
-  function read() { return structuredClone(documentState); }
-  function apply(value) { D.validate(value); documentState = structuredClone(value); localStorage.setItem(STORAGE_KEY, JSON.stringify(documentState)); renderAll(); }
-  function save() { D.validate(documentState); localStorage.setItem(STORAGE_KEY, JSON.stringify(documentState)); window.motSync?.mark(); renderCounts(); renderProgress(); }
-  function now() { return Date.now(); }
-  function makeId(prefix) { return `${prefix}:${now()}:${crypto.randomUUID?.() || Math.random().toString(16).slice(2)}`; }
-  function esc(value) { return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
-  function toast(message) { const node = $('#toast'); node.textContent = message; node.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => node.hidden = true, 2600); }
-  function sourceUrl(term) { return `https://fr.wiktionary.org/wiki/${encodeURIComponent(term.replace(/ /g, '_'))}`; }
-  function wordId(term) { return `word:${D.canonical(term).replace(/ /g, '-')}`; }
-  function expressionId(value) { return `expression:personnelle:${D.canonical(value).replace(/ /g, '-').slice(0, 160)}`; }
-
-  function showView(name) {
-    activeView = name;
-    $$('.view').forEach(view => view.hidden = view.id !== `${name}-view`);
-    $$('.nav-link').forEach(button => button.classList.toggle('active', button.dataset.view === name));
-    $('nav').classList.remove('open'); $('.mobile-menu').setAttribute('aria-expanded', 'false');
-    if (name === 'library') renderLibrary();
-    if (name === 'quiz') startQuiz();
-    scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function dailyItems() {
-    const readableArticles = C.articles.filter(article => article.daily !== false);
-    return {
-      word: D.daily(C.words, new Date(), 'mot-quotidien'),
-      expression: D.daily(C.expressions, new Date(), 'expression-quotidienne'),
-      article: D.daily(readableArticles, new Date(), 'article-quotidien')
-    };
-  }
-  function hasWord(term) { return documentState.words.some(item => D.canonical(item.term) === D.canonical(term)); }
-  function hasExpression(value) {
-    const id = typeof value === 'string' ? value : value?.id;
-    const expression = typeof value === 'object' ? D.canonical(value?.expression) : '';
-    return documentState.expressions.some(item => item.id === id || (expression && D.canonical(item.expression) === expression));
-  }
-  function articleNote(id) { return documentState.articleNotes.find(item => item.id === id); }
-
-  function addWord(word) {
-    if (hasWord(word.term)) return toast('Ce mot est déjà dans ta bibliothèque.');
-    const stamp = now();
-    documentState.words.unshift({ id: wordId(word.term), term: word.term, nature: word.nature || '', definition: word.definition, example: word.example || '', source: word.source || sourceUrl(word.term), note: '', learned: false, addedAt: stamp, updated: stamp });
-    save(); renderHome(); if (activeView === 'search') renderLookup(word); toast('Mot ajouté à ta bibliothèque.');
-  }
-  function addExpression(expression) {
-    if (hasExpression(expression)) return toast('Cette expression est déjà gardée.');
-    const stamp = now();
-    documentState.expressions.unshift({ ...expression, note: '', learned: false, addedAt: stamp, updated: stamp });
-    save(); renderHome(); if (activeView === 'search') renderExpressionLookup(expression); toast('Expression ajoutée à ta bibliothèque.');
-  }
-
-  function renderHome() {
-    const {word, expression, article} = dailyItems();
-    $('#today-label').textContent = new Intl.DateTimeFormat('fr-FR', {weekday:'long', day:'numeric', month:'long'}).format(new Date());
-    $('#daily-word').innerHTML = `<h2 class="daily-word-term">${esc(word.term)}</h2><span class="nature">${esc(word.nature)}</span><p class="definition">${esc(word.definition)}</p><p class="example">« ${esc(word.example)} »</p><div class="card-actions"><button class="button secondary ${hasWord(word.term)?'saved':''}" data-add-daily-word>${hasWord(word.term)?'✓ Dans ma bibliothèque':'+ Ajouter à ma bibliothèque'}</button></div>`;
-    $('#daily-expression').innerHTML = `<h2 class="daily-expression-term">« ${esc(expression.expression)} »</h2><p class="definition">${esc(expression.meaning)}</p><p class="example">${esc(expression.origin)}</p><div class="card-actions"><button class="button secondary ${hasExpression(expression.id)?'saved':''}" data-add-daily-expression>${hasExpression(expression.id)?'✓ Expression gardée':'+ Garder cette expression'}</button></div>`;
-    const note = articleNote(article.id) || {summary:'', comment:'', read:false};
-    $('#daily-article').innerHTML = `<div class="article-topline"><span>La lecture du jour · ${esc(article.theme)}</span><small>${esc(article.source)} · ${esc(article.publication || 'Publication')} · ${esc(article.date)}</small></div><div class="article-layout"><div class="big-stat">${esc(article.stat)}</div><div class="article-copy"><h2>${esc(article.title)}</h2><p>${esc(article.summary)}</p><div class="source-row"><span>${article.minutes} min de lecture</span><a href="${esc(article.url)}" target="_blank" rel="noopener">Lire l’analyse complète ↗</a></div><div class="article-notes"><label>Mon résumé<textarea data-article-field="summary" maxlength="12000" placeholder="Ce que je veux retenir…">${esc(note.summary)}</textarea></label><label>Mon commentaire<textarea data-article-field="comment" maxlength="12000" placeholder="Ce que cela m’évoque…">${esc(note.comment)}</textarea></label></div><label class="read-check"><input type="checkbox" data-article-read ${note.read?'checked':''}> Marquer comme lu et le garder dans mes lectures</label></div></div>`;
-    renderProgress();
-  }
-
-  function upsertArticle(article, patch) {
-    let note = articleNote(article.id);
-    if (!note) { note = {id:article.id, summary:'', comment:'', read:false, updated:now()}; documentState.articleNotes.unshift(note); }
-    Object.assign(note, patch, {updated:now()});
-    if (!note.summary && !note.comment && !note.read) documentState.articleNotes = documentState.articleNotes.filter(item => item.id !== note.id);
-    save();
-  }
-
-  async function lookup(term) {
-    const clean = term.trim();
-    const local = C.words.find(item => D.canonical(item.term) === D.canonical(clean));
-    $('#lookup-status').textContent = 'Recherche dans le Wiktionnaire…';
-    try {
-      const endpoint = new URL('https://fr.wiktionary.org/w/api.php');
-      endpoint.search = new URLSearchParams({action:'parse', page:clean, prop:'text|displaytitle', redirects:'1', format:'json', origin:'*'});
-      const response = await fetch(endpoint, {signal:AbortSignal.timeout(10000)});
-      if (!response.ok) throw Error('Service indisponible');
-      const payload = await response.json();
-      if (payload.error || !payload.parse?.text?.['*']) throw Error('Mot introuvable');
-      const parsed = new DOMParser().parseFromString(payload.parse.text['*'], 'text/html');
-      const frenchTitle = parsed.querySelector('#fr')?.closest('h2');
-      const french = frenchTitle?.closest('.mw-heading2') || frenchTitle;
-      if (!french) throw Error('Aucune section française');
-      const definitions = [];
-      for (let node = french.nextElementSibling; node; node = node.nextElementSibling) {
-        if (node.tagName === 'H2' || node.matches?.('.mw-heading2') || node.querySelector?.(':scope > h2')) break;
-        const lists = node.tagName === 'OL' ? [node] : [...(node.querySelectorAll?.(':scope > ol') || [])];
-        lists.forEach(list => list.querySelectorAll(':scope > li').forEach(item => {
-          const copy = item.cloneNode(true); copy.querySelectorAll('ol,ul,dl,table,sup,.reference').forEach(child => child.remove());
-          const text = copy.textContent.replace(/\s+/g, ' ').trim().replace(/\s*\[[^\]]+\]\s*/g, ' ');
-          if (text.length > 12 && text.length < 700 && !definitions.includes(text)) definitions.push(text);
-        }));
-      }
-      if (!definitions.length) throw Error('Aucune définition lisible');
-      return {id:wordId(clean), term:clean.toLocaleLowerCase('fr-FR'), nature:local?.nature || 'mot français', definition:definitions[0], definitions:definitions.slice(0,3), example:local?.example || '', source:sourceUrl(clean)};
-    } catch (error) {
-      if (local) return {...local, definitions:[local.definition], source:sourceUrl(local.term), fallback:true};
-      throw Error('Ce mot n’a pas été trouvé. Vérifie l’orthographe ou réessaie avec sa forme au singulier.');
+  const I18N = {
+    fr: {
+      navToday:'Aujourd’hui',navSearch:'Chercher',navLibrary:'Ma bibliothèque',menu:'Menu',footerPhrase:'Les mots ouvrent des mondes.',heroTitle:'Une idée à retenir.',heroEveryDay:'Chaque jour.',heroCopy:'Enrichis ton vocabulaire, comprends une expression et garde une statistique qui mérite d’être racontée.',discoveriesSaved:'découvertes gardées aujourd’hui',dailyWord:'Le mot du jour',dailyExpression:'L’expression du jour',livingDictionary:'Le dictionnaire vivant',searchTitle:'Un mot ou une expression t’échappe ?',searchCopy:'Cherche une définition, une expression ou une citation, puis garde-la pour la revoir plus tard.',word:'Mot',expressionOrQuote:'Expression ou citation',wordLabel:'Mot français',wordPlaceholder:'Ex. perspicace',expressionLabel:'Expression, proverbe ou citation',expressionPlaceholder:'Ex. La violence institutionnelle est mère de toutes les autres',search:'Chercher',tryThese:'À essayer',personalNotebook:'Ton carnet personnel',myLibrary:'Ma bibliothèque',libraryCopy:'Tout ce que tu as décidé de ne pas oublier.',notesPlaceholder:'Dans mes notes…',words:'Mots',expressions:'Expressions',readings:'Lectures',definitionGame:'Le jeu des définitions',findWord:'Retrouve le mot.',quizCopy:'La série mélange tes mots et de nouvelles découvertes. Les accents ne comptent pas, la mémoire oui.',successRate:'de réussite',dayStreak:'jours de suite',answers:'réponses',definition:'Définition',whatWord:'Quel est ce mot ?',validate:'Valider',dontKnow:'Je ne sais pas',nextWord:'Mot suivant →',
+      inLibrary:'✓ Dans ma bibliothèque',addLibrary:'+ Ajouter à ma bibliothèque',expressionSaved:'✓ Expression gardée',keepExpression:'+ Garder cette expression',alreadyWord:'Ce mot est déjà dans ta bibliothèque.',wordAdded:'Mot ajouté à ta bibliothèque.',alreadyExpression:'Cette expression est déjà gardée.',expressionAdded:'Expression ajoutée à ta bibliothèque.',offline:'Définition disponible hors ligne.',found:'Définition trouvée.',searching:'Recherche dans le Wiktionnaire…',notFound:'Ce mot n’a pas été trouvé. Vérifie l’orthographe ou réessaie avec sa forme au singulier.',frenchWord:'mot français',englishWord:'mot anglais',source:'Source ↗',publication:'Publication',dailyReading:'La lecture du jour',minutes:'min de lecture',readFull:'Lire l’analyse complète ↗',mySummary:'Mon résumé',summaryHint:'Ce que je veux retenir…',myComment:'Mon commentaire',commentHint:'Ce que cela m’évoque…',markRead:'Marquer comme lu et le garder dans mes lectures',expression:'Expression',quote:'Citation',foundNotebook:'trouvée dans le carnet.',unknownExpression:'Cette formulation n’est pas encore dans le carnet. Tu peux tout de même la garder et l’expliquer avec tes mots.',personalToDocument:'Ajout personnel à documenter',personalMeaning:'Ce que cela signifie pour moi',meaningHint:'Ajoute une explication ou le contexte dans lequel tu l’as trouvé…',itemType:'Type',author:'Auteur ou autrice',authorHint:'Nom de la personne citée (facultatif)',sourceLinks:'Liens des sources',sourceLinksHint:'Un lien par ligne (facultatif)',savePersonal:'+ Garder dans ma bibliothèque',verifyWikiquote:'Vérifier sur Wikiquote ↗',meaningRequired:'Ajoute d’abord une courte explication pour pouvoir garder cet élément.',invalidSources:'Chaque source doit être un lien http ou https valide.',minThree:'Écris au moins trois caractères pour chercher une expression.',noWords:'Aucun mot pour le moment.',noWordsHelp:'Cherche un mot ou ajoute celui du jour.',noExpressions:'Aucune expression gardée.',noExpressionsHelp:'L’expression quotidienne t’attend sur l’accueil.',noReadings:'Aucune lecture annotée.',noReadingsHelp:'Écris un résumé ou marque la donnée du jour comme lue.',personalNote:'Ma note personnelle…',learned:'✓ Acquis',acquired:'✓ Acquise',review:'À revoir',delete:'Supprimer',read:'✓ Lu',noteInProgress:'Note en cours',reread:'Relire ↗',deleteNotes:'Supprimer mes notes',addQuizWord:'+ Ajouter ce mot à ma bibliothèque',exact:'Exact — {word}.',giveUp:'Pas de souci — la réponse était « {word} ».',wrong:'La réponse était « {word} ».',newSeries:'Nouvelle série de cinq mots.',sourceName:'Wiktionnaire'
+    },
+    en: {
+      navToday:'Today',navSearch:'Search',navLibrary:'My library',menu:'Menu',footerPhrase:'Words open up worlds.',heroTitle:'One idea worth keeping.',heroEveryDay:'Every day.',heroCopy:'Build your vocabulary, understand an expression, and keep one statistic worth sharing.',discoveriesSaved:'discoveries saved today',dailyWord:'Word of the day',dailyExpression:'Expression of the day',livingDictionary:'The living dictionary',searchTitle:'Looking for a word or expression?',searchCopy:'Find a definition, expression, or quote, then save it for later.',word:'Word',expressionOrQuote:'Expression or quote',wordLabel:'English word',wordPlaceholder:'E.g. perspicacious',expressionLabel:'Expression, proverb, or quote',expressionPlaceholder:'E.g. The ball is in your court',search:'Search',tryThese:'Try these',personalNotebook:'Your personal notebook',myLibrary:'My library',libraryCopy:'Everything you decided not to forget.',notesPlaceholder:'Search my notes…',words:'Words',expressions:'Expressions',readings:'Readings',definitionGame:'The definition game',findWord:'Find the word.',quizCopy:'Each round mixes saved words with new discoveries. Spelling matters; memory matters more.',successRate:'success rate',dayStreak:'day streak',answers:'answers',definition:'Definition',whatWord:'What is this word?',validate:'Check',dontKnow:'I don’t know',nextWord:'Next word →',
+      inLibrary:'✓ In my library',addLibrary:'+ Add to my library',expressionSaved:'✓ Expression saved',keepExpression:'+ Save this expression',alreadyWord:'This word is already in your library.',wordAdded:'Word added to your library.',alreadyExpression:'This expression is already saved.',expressionAdded:'Expression added to your library.',offline:'Offline definition available.',found:'Definition found.',searching:'Searching Wiktionary…',notFound:'This word was not found. Check the spelling and try again.',frenchWord:'French word',englishWord:'English word',source:'Source ↗',publication:'Publication',dailyReading:'Today’s reading',minutes:'min read',readFull:'Read the full analysis ↗',mySummary:'My summary',summaryHint:'What I want to remember…',myComment:'My comment',commentHint:'What this makes me think about…',markRead:'Mark as read and keep it in my readings',expression:'Expression',quote:'Quote',foundNotebook:'found in the notebook.',unknownExpression:'This wording is not in the notebook yet. You can still save it and explain it in your own words.',personalToDocument:'Personal entry to document',personalMeaning:'What it means to me',meaningHint:'Add an explanation or the context where you found it…',itemType:'Type',author:'Author or speaker',authorHint:'Name of the person quoted (optional)',sourceLinks:'Source links',sourceLinksHint:'One link per line (optional)',savePersonal:'+ Save to my library',verifyWikiquote:'Check Wikiquote ↗',meaningRequired:'Add a short explanation before saving this entry.',invalidSources:'Each source must be a valid http or https link.',minThree:'Enter at least three characters to search for an expression.',noWords:'No words yet.',noWordsHelp:'Search for a word or add today’s word.',noExpressions:'No saved expressions.',noExpressionsHelp:'Today’s expression is waiting on the home page.',noReadings:'No annotated readings.',noReadingsHelp:'Write a summary or mark today’s article as read.',personalNote:'My personal note…',learned:'✓ Learned',acquired:'✓ Learned',review:'Review',delete:'Delete',read:'✓ Read',noteInProgress:'Note in progress',reread:'Read again ↗',deleteNotes:'Delete my notes',addQuizWord:'+ Add this word to my library',exact:'Correct — {word}.',giveUp:'No worries — the answer was “{word}”.',wrong:'The answer was “{word}”.',newSeries:'New set of five words.',sourceName:'Wiktionary'
     }
-  }
-  function renderLookup(word) {
-    $('#lookup-status').textContent = word.fallback ? 'Définition disponible hors ligne.' : 'Définition trouvée.';
-    const definitions = word.definitions || [word.definition];
-    $('#lookup-result').innerHTML = `<article class="result-card"><span class="nature">${esc(word.nature || 'mot français')}</span><h3>${esc(word.term)}</h3><ol>${definitions.map(value=>`<li>${esc(value)}</li>`).join('')}</ol>${word.example?`<p class="example">« ${esc(word.example)} »</p>`:''}<div class="card-actions"><button class="button secondary ${hasWord(word.term)?'saved':''}" data-add-result>${hasWord(word.term)?'✓ Dans ma bibliothèque':'+ Ajouter à ma bibliothèque'}</button><span class="result-source">Source : <a href="${esc(word.source)}" target="_blank" rel="noopener">Wiktionnaire ↗</a></span></div></article>`;
-    $('[data-add-result]').onclick = () => addWord(word);
-  }
+  };
+  function t(key, values={}) { return Object.entries(values).reduce((value,[name,replacement])=>value.replaceAll(`{${name}}`,replacement), I18N[locale][key] || key); }
+  function load(){try{return D.validate(JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||D.empty());}catch{return D.empty();}}
+  function read(){return structuredClone(documentState);}
+  function apply(value){D.validate(value);documentState=structuredClone(value);localStorage.setItem(STORAGE_KEY,JSON.stringify(documentState));renderAll();}
+  function save(){D.validate(documentState);localStorage.setItem(STORAGE_KEY,JSON.stringify(documentState));window.motSync?.mark();renderCounts();renderProgress();}
+  function now(){return Date.now();} function makeId(prefix){return `${prefix}:${now()}:${crypto.randomUUID?.()||Math.random().toString(16).slice(2)}`;}
+  function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+  function toast(message){const node=$('#toast');node.textContent=message;node.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.hidden=true,2600);}
+  function currentContent(){return locale==='en'?{words:CE.words,expressions:CE.expressions,articles:C.articles}:C;}
+  function itemLanguage(item){return item.language||(String(item.id||'').includes(':en:')?'en':'fr');}
+  function sourceUrl(term,language=locale){return `https://${language}.wiktionary.org/wiki/${encodeURIComponent(term.replace(/ /g,'_'))}`;}
+  function wordId(term,language=locale){return `word:${language==='fr'?'':`${language}:`}${D.canonical(term).replace(/ /g,'-')}`;}
+  function expressionId(value,language=locale){return `expression:${language}:personnelle:${D.canonical(value).replace(/ /g,'-').slice(0,150)}`;}
+  function normalizeDefinitions(word){return [...new Set([...(Array.isArray(word.definitions)?word.definitions:[]),word.definition].map(value=>String(value||'').trim()).filter(Boolean))];}
+  function parseSources(value){return String(value||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((url,index)=>{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw Error(t('invalidSources'));return{url:parsed.href,label:`Source ${index+1}`};});}
+  function expressionSources(item){const values=Array.isArray(item.sources)?[...item.sources]:[];if(item.sourceUrl&&!values.some(source=>source.url===item.sourceUrl))values.unshift({url:item.sourceUrl,label:item.sourceLabel||item.author||'Source'});return values;}
+  function sourceLinks(item){return expressionSources(item).map((source,index)=>`<a href="${esc(source.url)}" target="_blank" rel="noopener">${esc(source.label||`Source ${index+1}`)} ↗</a>`).join('<span aria-hidden="true"> · </span>');}
 
-  function expressionScore(expression, query) {
-    const target = D.canonical([expression.expression, expression.author, expression.meaning].filter(Boolean).join(' '));
-    const clean = D.canonical(query);
-    if (!clean) return 0;
-    if (target.includes(clean) || clean.includes(D.canonical(expression.expression))) return 1;
-    const queryTokens = new Set(clean.split(' ').filter(token => token.length > 2));
-    const targetTokens = new Set(target.split(' ').filter(token => token.length > 2));
-    if (!queryTokens.size) return 0;
-    const shared = [...queryTokens].filter(token => targetTokens.has(token)).length;
-    return (shared / queryTokens.size * .75) + (shared / Math.max(targetTokens.size, 1) * .25);
-  }
-  function findExpression(term) {
-    return C.expressions
-      .map(expression => ({ expression, score: expressionScore(expression, term) }))
-      .sort((left, right) => right.score - left.score)[0];
-  }
-  function renderExpressionLookup(expression) {
-    const kind = expression.type === 'citation' ? 'Citation' : 'Expression';
-    $('#lookup-status').textContent = `${kind} trouvée dans le carnet.`;
-    const source = expression.sourceUrl ? `<span class="result-source">Source : <a href="${esc(expression.sourceUrl)}" target="_blank" rel="noopener">${esc(expression.sourceLabel || expression.author || 'consulter')} ↗</a></span>` : '';
-    $('#lookup-result').innerHTML = `<article class="result-card"><span class="nature">${kind}${expression.author ? ` · ${esc(expression.author)}` : ''}</span><h3>« ${esc(expression.expression)} »</h3><p class="definition">${esc(expression.meaning)}</p>${expression.origin ? `<p class="origin">${esc(expression.origin)}</p>` : ''}${expression.example ? `<p class="example">${esc(expression.example)}</p>` : ''}<div class="card-actions"><button class="button secondary ${hasExpression(expression)?'saved':''}" data-add-expression-result>${hasExpression(expression)?'✓ Dans ma bibliothèque':'+ Ajouter à ma bibliothèque'}</button>${source}</div></article>`;
-    $('[data-add-expression-result]').onclick = () => addExpression(expression);
-  }
-  function renderExpressionDraft(value) {
-    const expression = value.trim();
-    $('#lookup-status').textContent = 'Cette formulation n’est pas encore dans le carnet. Tu peux tout de même la garder et l’expliquer avec tes mots.';
-    const wikiquote = `https://fr.wikiquote.org/w/index.php?search=${encodeURIComponent(expression)}`;
-    $('#lookup-result').innerHTML = `<article class="result-card"><span class="nature">Expression personnelle à documenter</span><h3>« ${esc(expression)} »</h3><div class="manual-expression"><label>Ce que cette expression signifie pour moi<textarea data-expression-meaning maxlength="12000" placeholder="Ajoute une explication ou le contexte dans lequel tu l’as trouvée…"></textarea></label></div><div class="card-actions"><button class="button secondary" data-save-expression-draft>+ Garder dans ma bibliothèque</button><span class="result-source"><a href="${esc(wikiquote)}" target="_blank" rel="noopener">Vérifier sur Wikiquote ↗</a></span></div></article>`;
-    $('[data-save-expression-draft]').onclick = () => {
-      const meaning = $('[data-expression-meaning]').value.trim();
-      if (!meaning) { $('#lookup-status').textContent = 'Ajoute d’abord une courte explication pour pouvoir garder cette expression.'; $('[data-expression-meaning]').focus(); return; }
-      addExpression({ id:expressionId(expression), expression, meaning, origin:'Ajout personnel', type:'expression' });
-    };
-  }
-  function lookupExpression(term) {
-    const clean = term.trim();
-    if (clean.length < 3) throw Error('Écris au moins trois caractères pour chercher une expression.');
-    const result = findExpression(clean);
-    if (result?.score >= .48) renderExpressionLookup(result.expression);
-    else renderExpressionDraft(clean);
-  }
-  function setLookupMode(mode) {
-    const expressionMode = mode === 'expression';
-    $('#word-search-form').hidden = expressionMode;
-    $('#expression-search-form').hidden = !expressionMode;
-    $('[data-word-suggestions]').hidden = expressionMode;
-    $('[data-expression-suggestions]').hidden = !expressionMode;
-    $$('[data-lookup-tab]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.lookupTab === mode)));
-    $('#lookup-status').textContent = '';
-    $('#lookup-result').innerHTML = '';
-    $(expressionMode ? '#expression-search' : '#word-search').focus();
-  }
+  function applyLocale(){document.documentElement.lang=locale;document.title=locale==='fr'?'Mot à mot — Chaque jour compte.':'Mot à mot — Make every day count.';$('meta[name="description"]').content=locale==='fr'?'Un mot, une expression et une idée à retenir chaque jour.':'A word, an expression, and one idea worth keeping every day.';$$('[data-i18n]').forEach(node=>node.textContent=t(node.dataset.i18n));$$('[data-i18n-placeholder]').forEach(node=>node.placeholder=t(node.dataset.i18nPlaceholder));$('#footer-wiktionary').href=`https://${locale}.wiktionary.org/`;const switcher=$('#language-switch');switcher.textContent=locale==='fr'?'EN':'FR';switcher.setAttribute('aria-label',locale==='fr'?'Passer en anglais':'Switch to French');renderSuggestions();}
+  function renderSuggestions(){const words=locale==='fr'?['sagace','liminaire','ineffable']:['candid','resilient','serendipity'];const expressions=locale==='fr'?['appeler un chat un chat','violence institutionnelle']:['break the ice','the ball is in your court'];$('[data-word-suggestions] [data-suggestion-buttons]').innerHTML=words.map(value=>`<button data-word-suggestion="${esc(value)}">${esc(value)}</button>`).join('');$('[data-expression-suggestions] [data-suggestion-buttons]').innerHTML=expressions.map(value=>`<button data-expression-suggestion="${esc(value)}">${esc(value)}</button>`).join('');}
+  function changeLocale(){locale=locale==='fr'?'en':'fr';localStorage.setItem(LOCALE_KEY,locale);quizDeck=[];applyLocale();renderAll();setLookupMode(lookupMode,false);}
+  function showView(name){activeView=name;$$('.view').forEach(view=>view.hidden=view.id!==`${name}-view`);$$('.nav-link').forEach(button=>button.classList.toggle('active',button.dataset.view===name));$('nav').classList.remove('open');$('.mobile-menu').setAttribute('aria-expanded','false');if(name==='library')renderLibrary();if(name==='quiz')startQuiz();scrollTo({top:0,behavior:'smooth'});}
+  function dailyItems(){const content=currentContent();return{word:D.daily(content.words,new Date(),`mot-quotidien-${locale}`),expression:D.daily(content.expressions,new Date(),`expression-quotidienne-${locale}`),article:D.daily(C.articles.filter(article=>article.daily!==false),new Date(),'article-quotidien')};}
+  function hasWord(term,language=locale){return documentState.words.some(item=>itemLanguage(item)===language&&D.canonical(item.term)===D.canonical(term));}
+  function hasExpression(value,language=locale){const id=typeof value==='string'?value:value?.id, expression=typeof value==='object'?D.canonical(value?.expression):'';return documentState.expressions.some(item=>itemLanguage(item)===language&&(item.id===id||(expression&&D.canonical(item.expression)===expression)));}
+  function articleNote(id){return documentState.articleNotes.find(item=>item.id===id);}
+  function addWord(word){const language=word.language||locale;if(hasWord(word.term,language))return toast(t('alreadyWord'));const stamp=now(),definitions=normalizeDefinitions(word);documentState.words.unshift({id:word.id||wordId(word.term,language),term:word.term,nature:word.nature||'',definition:definitions[0],definitions,example:word.example||'',source:word.source||sourceUrl(word.term,language),language,note:'',learned:false,addedAt:stamp,updated:stamp});save();renderHome();if(activeView==='search')renderLookup({...word,definitions,language});toast(t('wordAdded'));}
+  function addExpression(expression){const language=expression.language||locale;if(hasExpression(expression,language))return toast(t('alreadyExpression'));const stamp=now();documentState.expressions.unshift({...expression,language,note:'',learned:false,addedAt:stamp,updated:stamp});save();renderHome();if(activeView==='search')renderExpressionLookup({...expression,language});toast(t('expressionAdded'));}
 
-  function renderCounts() {
-    $('#nav-count').textContent = documentState.words.length + documentState.expressions.length;
-    $('#words-count').textContent = documentState.words.length;
-    $('#expressions-count').textContent = documentState.expressions.length;
-    $('#articles-count').textContent = documentState.articleNotes.length;
-  }
-  function renderProgress() {
-    const daily = dailyItems();
-    const count = Number(hasWord(daily.word.term)) + Number(hasExpression(daily.expression.id)) + Number(Boolean(articleNote(daily.article.id)?.read));
-    $('#day-progress-count').textContent = `${count}/3`;
-    $('#day-progress-fill').style.width = `${count/3*100}%`;
-  }
+  function renderHome(){const{word,expression,article}=dailyItems();$('#today-label').textContent=new Intl.DateTimeFormat(locale==='fr'?'fr-FR':'en-GB',{weekday:'long',day:'numeric',month:'long'}).format(new Date());$('#daily-word').innerHTML=`<h2 class="daily-word-term">${esc(word.term)}</h2><span class="nature">${esc(word.nature)}</span><p class="definition preserve-lines">${esc(word.definition)}</p><p class="example preserve-lines">“${esc(word.example)}”</p><div class="card-actions"><button class="button secondary ${hasWord(word.term)?'saved':''}" data-add-daily-word>${hasWord(word.term)?t('inLibrary'):t('addLibrary')}</button></div>`;$('#daily-expression').innerHTML=`<h2 class="daily-expression-term">“${esc(expression.expression)}”</h2><p class="definition preserve-lines">${esc(expression.meaning)}</p><p class="example preserve-lines">${esc(expression.origin||'')}</p><div class="card-actions"><button class="button secondary ${hasExpression(expression)?'saved':''}" data-add-daily-expression>${hasExpression(expression)?t('expressionSaved'):t('keepExpression')}</button></div>`;const note=articleNote(article.id)||{summary:'',comment:'',read:false};$('#daily-article').innerHTML=`<div class="article-topline"><span>${t('dailyReading')} · ${esc(article.theme)}</span><small>${esc(article.source)} · ${esc(article.publication||t('publication'))} · ${esc(article.date)}</small></div><div class="article-layout"><div class="big-stat">${esc(article.stat)}</div><div class="article-copy"><h2>${esc(article.title)}</h2><p class="preserve-lines">${esc(article.summary)}</p><div class="source-row"><span>${article.minutes} ${t('minutes')}</span><a href="${esc(article.url)}" target="_blank" rel="noopener">${t('readFull')}</a></div><div class="article-notes"><label>${t('mySummary')}<textarea data-article-field="summary" maxlength="12000" placeholder="${esc(t('summaryHint'))}">${esc(note.summary)}</textarea></label><label>${t('myComment')}<textarea data-article-field="comment" maxlength="12000" placeholder="${esc(t('commentHint'))}">${esc(note.comment)}</textarea></label></div><label class="read-check"><input type="checkbox" data-article-read ${note.read?'checked':''}> ${t('markRead')}</label></div></div>`;renderProgress();}
+  function upsertArticle(article,patch){let note=articleNote(article.id);if(!note){note={id:article.id,summary:'',comment:'',read:false,updated:now()};documentState.articleNotes.unshift(note);}Object.assign(note,patch,{updated:now()});if(!note.summary&&!note.comment&&!note.read)documentState.articleNotes=documentState.articleNotes.filter(item=>item.id!==note.id);save();}
 
-  function renderLibrary() {
-    renderCounts();
-    const query = D.canonical($('#library-search').value);
-    const list = $('#library-list');
-    let items = documentState[libraryTab] || [];
-    if (libraryTab === 'articles') items = documentState.articleNotes.map(note => ({...C.articles.find(article=>article.id===note.id), ...note})).filter(item=>item.title);
-    if (query) items = items.filter(item => D.canonical(Object.values(item).join(' ')).includes(query));
-    if (!items.length) {
-      const labels = {words:['Aucun mot pour le moment.','Cherche un mot ou ajoute celui du jour.'],expressions:['Aucune expression gardée.','L’expression quotidienne t’attend sur l’accueil.'],articles:['Aucune lecture annotée.','Écris un résumé ou marque la donnée du jour comme lue.']};
-      list.innerHTML = `<div class="empty-state"><strong>${labels[libraryTab][0]}</strong><p>${labels[libraryTab][1]}</p></div>`; return;
-    }
-    if (libraryTab === 'words') list.innerHTML = items.map(item => `<article class="library-item" data-id="${esc(item.id)}"><span class="nature">${esc(item.nature)}</span><h3>${esc(item.term)}</h3><p>${esc(item.definition)}</p><textarea data-note maxlength="12000" placeholder="Ma note personnelle…">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?'✓ Acquis':'À revoir'}</button><a href="${esc(item.source)}" target="_blank" rel="noopener">Source ↗</a><button data-delete>Supprimer</button></div></article>`).join('');
-    if (libraryTab === 'expressions') list.innerHTML = items.map(item => `<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${item.type === 'citation' ? 'Citation' : 'Expression'}${item.author ? ` · ${esc(item.author)}` : ''}</span><h3>« ${esc(item.expression)} »</h3><p>${esc(item.meaning)}</p>${item.origin ? `<p class="example">${esc(item.origin)}</p>` : ''}<textarea data-note maxlength="12000" placeholder="Ma note personnelle…">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?'✓ Acquise':'À revoir'}</button>${item.sourceUrl ? `<a href="${esc(item.sourceUrl)}" target="_blank" rel="noopener">Source ↗</a>` : ''}<button data-delete>Supprimer</button></div></article>`).join('');
-    if (libraryTab === 'articles') list.innerHTML = items.map(item => `<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${esc(item.source)} · ${esc(item.theme)}</span><h3>${esc(item.title)}</h3><p>${esc(item.summary)}</p>${item.comment?`<p class="example">« ${esc(item.comment)} »</p>`:''}<div class="library-item-actions"><button>${item.read?'✓ Lu':'Note en cours'}</button><a href="${esc(item.url)}" target="_blank" rel="noopener">Relire ↗</a><button data-delete>Supprimer mes notes</button></div></article>`).join('');
-  }
+  async function lookup(term){const clean=term.trim(),content=currentContent(),local=content.words.find(item=>D.canonical(item.term)===D.canonical(clean));$('#lookup-status').textContent=t('searching');try{const endpoint=new URL(`https://${locale}.wiktionary.org/w/api.php`);endpoint.search=new URLSearchParams({action:'parse',page:clean,prop:'text|displaytitle',redirects:'1',format:'json',origin:'*'});const response=await fetch(endpoint,{signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();const payload=await response.json();if(payload.error||!payload.parse?.text?.['*'])throw Error();const parsed=new DOMParser().parseFromString(payload.parse.text['*'],'text/html'),sectionId=locale==='fr'?'fr':'English',title=parsed.querySelector(`#${sectionId}`)?.closest('h2'),section=title?.closest('.mw-heading2')||title;if(!section)throw Error();const definitions=[];for(let node=section.nextElementSibling;node;node=node.nextElementSibling){if(node.tagName==='H2'||node.matches?.('.mw-heading2')||node.querySelector?.(':scope > h2'))break;const lists=node.tagName==='OL'?[node]:[...(node.querySelectorAll?.(':scope > ol')||[])];lists.forEach(list=>list.querySelectorAll(':scope > li').forEach(item=>{const copy=item.cloneNode(true);copy.querySelectorAll('ol,ul,dl,table,sup,.reference').forEach(child=>child.remove());const text=copy.textContent.replace(/\s+/g,' ').trim().replace(/\s*\[[^\]]+\]\s*/g,' ');if(text.length>12&&text.length<1200&&!definitions.includes(text))definitions.push(text);}));}if(!definitions.length)throw Error();return{id:wordId(clean),term:clean.toLocaleLowerCase(locale==='fr'?'fr-FR':'en-GB'),nature:local?.nature||t(locale==='fr'?'frenchWord':'englishWord'),definition:definitions[0],definitions,example:local?.example||'',source:sourceUrl(clean),language:locale};}catch{if(local)return{...local,definitions:normalizeDefinitions(local),source:sourceUrl(local.term),language:locale,fallback:true};throw Error(t('notFound'));}}
+  function renderLookup(word){const language=word.language||locale,definitions=normalizeDefinitions(word);$('#lookup-status').textContent=word.fallback?t('offline'):t('found');$('#lookup-result').innerHTML=`<article class="result-card"><span class="nature">${esc(word.nature||t(language==='fr'?'frenchWord':'englishWord'))}</span><h3>${esc(word.term)}</h3><ol>${definitions.map(value=>`<li class="preserve-lines">${esc(value)}</li>`).join('')}</ol>${word.example?`<p class="example preserve-lines">“${esc(word.example)}”</p>`:''}<div class="card-actions"><button class="button secondary ${hasWord(word.term,language)?'saved':''}" data-add-result>${hasWord(word.term,language)?t('inLibrary'):t('addLibrary')}</button><span class="result-source">${t('source').replace(' ↗','')} : <a href="${esc(word.source||sourceUrl(word.term,language))}" target="_blank" rel="noopener">${t('sourceName')} ↗</a></span></div></article>`;$('[data-add-result]').onclick=()=>addWord({...word,definitions,language});}
+  function expressionScore(expression,query){const target=D.canonical([expression.expression,expression.author,expression.meaning].filter(Boolean).join(' ')),clean=D.canonical(query);if(!clean)return 0;if(target.includes(clean)||clean.includes(D.canonical(expression.expression)))return 1;const queryTokens=new Set(clean.split(' ').filter(token=>token.length>2)),targetTokens=new Set(target.split(' ').filter(token=>token.length>2));if(!queryTokens.size)return 0;const shared=[...queryTokens].filter(token=>targetTokens.has(token)).length;return shared/queryTokens.size*.75+shared/Math.max(targetTokens.size,1)*.25;}
+  function findExpression(term){return currentContent().expressions.map(expression=>({expression,score:expressionScore(expression,term)})).sort((a,b)=>b.score-a.score)[0];}
+  function renderExpressionLookup(expression){const kind=expression.type==='citation'?t('quote'):t('expression'),links=sourceLinks(expression);$('#lookup-status').textContent=`${kind} ${t('foundNotebook')}`;$('#lookup-result').innerHTML=`<article class="result-card"><span class="nature">${kind}${expression.author?` · ${esc(expression.author)}`:''}</span><h3>“${esc(expression.expression)}”</h3><p class="definition preserve-lines">${esc(expression.meaning)}</p>${expression.origin?`<p class="origin preserve-lines">${esc(expression.origin)}</p>`:''}${expression.example?`<p class="example preserve-lines">${esc(expression.example)}</p>`:''}<div class="card-actions"><button class="button secondary ${hasExpression(expression,expression.language||locale)?'saved':''}" data-add-expression-result>${hasExpression(expression,expression.language||locale)?t('inLibrary'):t('addLibrary')}</button>${links?`<span class="result-source">${links}</span>`:''}</div></article>`;$('[data-add-expression-result]').onclick=()=>addExpression(expression);}
+  function renderExpressionDraft(value){const expression=value.trim();$('#lookup-status').textContent=t('unknownExpression');const wikiquote=`https://${locale}.wikiquote.org/w/index.php?search=${encodeURIComponent(expression)}`;$('#lookup-result').innerHTML=`<article class="result-card"><span class="nature">${t('personalToDocument')}</span><h3>“${esc(expression)}”</h3><div class="manual-expression manual-grid"><label>${t('itemType')}<select data-expression-type><option value="expression">${t('expression')}</option><option value="citation">${t('quote')}</option></select></label><label>${t('author')}<input data-expression-author maxlength="240" placeholder="${esc(t('authorHint'))}"></label><label class="manual-wide">${t('personalMeaning')}<textarea data-expression-meaning maxlength="12000" placeholder="${esc(t('meaningHint'))}"></textarea></label><label class="manual-wide">${t('sourceLinks')}<textarea data-expression-sources maxlength="12000" placeholder="${esc(t('sourceLinksHint'))}"></textarea></label></div><div class="card-actions"><button class="button secondary" data-save-expression-draft>${t('savePersonal')}</button><span class="result-source"><a href="${esc(wikiquote)}" target="_blank" rel="noopener">${t('verifyWikiquote')}</a></span></div></article>`;$('[data-save-expression-draft]').onclick=()=>{const meaning=$('[data-expression-meaning]').value.trim();if(!meaning){$('#lookup-status').textContent=t('meaningRequired');$('[data-expression-meaning]').focus();return;}try{const type=$('[data-expression-type]').value,author=$('[data-expression-author]').value.trim(),sources=parseSources($('[data-expression-sources]').value);addExpression({id:expressionId(expression),expression,meaning,origin:locale==='fr'?'Ajout personnel':'Personal entry',personal:true,type,author,sources,language:locale});}catch(error){$('#lookup-status').textContent=error.message;$('[data-expression-sources]').focus();}};}
+  function lookupExpression(term){const clean=term.trim();if(clean.length<3)throw Error(t('minThree'));const result=findExpression(clean);if(result?.score>=.48)renderExpressionLookup({...result.expression,language:locale});else renderExpressionDraft(clean);}
+  function setLookupMode(mode,focus=true){lookupMode=mode;const expressionMode=mode==='expression';$('#word-search-form').hidden=expressionMode;$('#expression-search-form').hidden=!expressionMode;$('[data-word-suggestions]').hidden=expressionMode;$('[data-expression-suggestions]').hidden=!expressionMode;$$('[data-lookup-tab]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.lookupTab===mode)));$('#lookup-status').textContent='';$('#lookup-result').innerHTML='';if(focus)$(expressionMode?'#expression-search':'#word-search').focus();}
+  function renderCounts(){$('#nav-count').textContent=documentState.words.length+documentState.expressions.length;$('#words-count').textContent=documentState.words.length;$('#expressions-count').textContent=documentState.expressions.length;$('#articles-count').textContent=documentState.articleNotes.length;}
+  function renderProgress(){const daily=dailyItems(),count=Number(hasWord(daily.word.term))+Number(hasExpression(daily.expression))+Number(Boolean(articleNote(daily.article.id)?.read));$('#day-progress-count').textContent=`${count}/3`;$('#day-progress-fill').style.width=`${count/3*100}%`;}
+  function personalExpressionFields(item){if(!(item.personal||item.origin==='Ajout personnel'||item.origin==='Personal entry'))return'';return`<div class="personal-fields"><label>${t('itemType')}<select data-expression-field="type"><option value="expression" ${item.type!=='citation'?'selected':''}>${t('expression')}</option><option value="citation" ${item.type==='citation'?'selected':''}>${t('quote')}</option></select></label><label>${t('author')}<input data-expression-field="author" maxlength="240" value="${esc(item.author||'')}" placeholder="${esc(t('authorHint'))}"></label><label class="manual-wide">${t('sourceLinks')}<textarea data-expression-sources-editor maxlength="12000" placeholder="${esc(t('sourceLinksHint'))}">${esc(expressionSources(item).map(source=>source.url).join('\n'))}</textarea></label></div>`;}
+  function renderLibrary(){renderCounts();const query=D.canonical($('#library-search').value),list=$('#library-list');let items=documentState[libraryTab]||[];if(libraryTab==='articles')items=documentState.articleNotes.map(note=>({...C.articles.find(article=>article.id===note.id),...note})).filter(item=>item.title);if(query)items=items.filter(item=>D.canonical(JSON.stringify(item)).includes(query));if(!items.length){const labels={words:[t('noWords'),t('noWordsHelp')],expressions:[t('noExpressions'),t('noExpressionsHelp')],articles:[t('noReadings'),t('noReadingsHelp')]};list.innerHTML=`<div class="empty-state"><strong>${labels[libraryTab][0]}</strong><p>${labels[libraryTab][1]}</p></div>`;return;}if(libraryTab==='words')list.innerHTML=items.map(item=>{const language=itemLanguage(item),definitions=normalizeDefinitions(item);return`<article class="library-item" data-id="${esc(item.id)}"><span class="nature">${language.toUpperCase()} · ${esc(item.nature)}</span><h3>${esc(item.term)}</h3><ol class="library-definitions">${definitions.map(value=>`<li class="preserve-lines">${esc(value)}</li>`).join('')}</ol><textarea data-note maxlength="12000" placeholder="${esc(t('personalNote'))}">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?t('learned'):t('review')}</button><a class="library-action-link" href="${esc(item.source||sourceUrl(item.term,language))}" target="_blank" rel="noopener">${t('source')}</a><button data-delete>${t('delete')}</button></div></article>`;}).join('');if(libraryTab==='expressions')list.innerHTML=items.map(item=>{const links=sourceLinks(item);return`<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${item.type==='citation'?t('quote'):t('expression')}${item.author?` · ${esc(item.author)}`:''}</span><h3>“${esc(item.expression)}”</h3><p class="preserve-lines">${esc(item.meaning)}</p>${item.origin?`<p class="example preserve-lines">${esc(item.origin)}</p>`:''}${personalExpressionFields(item)}<textarea data-note maxlength="12000" placeholder="${esc(t('personalNote'))}">${esc(item.note)}</textarea><div class="library-item-actions"><button data-learned>${item.learned?t('acquired'):t('review')}</button>${links?`<span class="library-sources">${links}</span>`:''}<button data-delete>${t('delete')}</button></div></article>`;}).join('');if(libraryTab==='articles')list.innerHTML=items.map(item=>`<article class="library-item expression-item" data-id="${esc(item.id)}"><span class="nature">${esc(item.source)} · ${esc(item.theme)}</span><h3>${esc(item.title)}</h3><p class="preserve-lines">${esc(item.summary)}</p>${item.comment?`<p class="example preserve-lines">“${esc(item.comment)}”</p>`:''}<div class="library-item-actions"><button>${item.read?t('read'):t('noteInProgress')}</button><a class="library-action-link" href="${esc(item.url)}" target="_blank" rel="noopener">${t('reread')}</a><button data-delete>${t('deleteNotes')}</button></div></article>`).join('');}
 
-  function shuffle(values) {
-    const result = [...values];
-    for (let index=result.length-1; index>0; index--) { const other=Math.floor(Math.random()*(index+1)); [result[index],result[other]]=[result[other],result[index]]; }
-    return result;
-  }
-  function quizPool() {
-    const saved = documentState.words.map(item=>({...item, saved:true}));
-    const extras = C.words.filter(item=>!saved.some(word=>D.canonical(word.term)===D.canonical(item.term)));
-    return shuffle([...shuffle(saved).slice(0,5), ...shuffle(extras).slice(0,Math.max(0,5-saved.length))]).slice(0,5);
-  }
-  function startQuiz() { quizDeck=quizPool(); quizIndex=0; answered=false; renderQuiz(); renderQuizStats(); }
-  function renderQuizSave(word) {
-    const button = $('#quiz-save');
-    const saved = hasWord(word.term);
-    button.hidden = false;
-    button.disabled = saved;
-    button.classList.toggle('saved', saved);
-    button.textContent = saved ? '✓ Dans ma bibliothèque' : '+ Ajouter ce mot à ma bibliothèque';
-  }
-  function renderQuiz() {
-    if (!quizDeck.length) quizDeck = quizPool();
-    const word = quizDeck[quizIndex]; answered=false;
-    $('#quiz-position').textContent = `${quizIndex+1} / ${quizDeck.length}`;
-    $('#quiz-definition').textContent = word.definition;
-    $('#quiz-nature').textContent = word.nature || 'mot français';
-    $('#quiz-answer').value=''; $('#quiz-answer').disabled=false; $('#quiz-form button[type="submit"]').disabled=false; $('#quiz-give-up').hidden=false;
-    $('#quiz-feedback').textContent=''; $('#quiz-feedback').className='quiz-feedback'; $('#quiz-save').hidden=true; $('#quiz-next').hidden=true;
-  }
-  function renderQuizStats() { const stats=D.quizStats(documentState.quizAnswers); $('#quiz-rate').textContent=`${stats.rate} %`; $('#quiz-streak').textContent=stats.streak; $('#quiz-total').textContent=stats.attempts; }
-  function answerQuiz(giveUp = false) {
-    if (answered) return; answered=true;
-    const word=quizDeck[quizIndex], value=$('#quiz-answer').value, correct=!giveUp&&D.canonical(value)===D.canonical(word.term);
-    documentState.quizAnswers.unshift({id:makeId('answer'),term:word.term,correct,at:now()});
-    if (documentState.quizAnswers.length>2000) documentState.quizAnswers.length=2000;
-    const saved=documentState.words.find(item=>D.canonical(item.term)===D.canonical(word.term));
-    if(saved){saved.updated=now();if(correct)saved.learned=true;}
-    save(); renderQuizStats();
-    $('#quiz-feedback').textContent=correct?`Exact — ${word.term}.`:giveUp?`Pas de souci — la réponse était « ${word.term} ». `:`La réponse était « ${word.term} ». `;
-    $('#quiz-feedback').classList.add(correct?'correct':'wrong'); $('#quiz-answer').disabled=true; $('#quiz-form button[type="submit"]').disabled=true; $('#quiz-give-up').hidden=true; renderQuizSave(word); $('#quiz-next').hidden=false;
-  }
+  function shuffle(values){const result=[...values];for(let index=result.length-1;index>0;index--){const other=Math.floor(Math.random()*(index+1));[result[index],result[other]]=[result[other],result[index]];}return result;}
+  function quizPool(){const saved=documentState.words.filter(item=>itemLanguage(item)===locale).map(item=>({...item,saved:true})),extras=currentContent().words.filter(item=>!saved.some(word=>D.canonical(word.term)===D.canonical(item.term))).map(item=>({...item,language:locale})),selectedExtras=shuffle(extras).slice(0,Math.min(2,extras.length)),selectedSaved=shuffle(saved).slice(0,5-selectedExtras.length),remaining=[...shuffle(extras.filter(item=>!selectedExtras.includes(item))),...shuffle(saved.filter(item=>!selectedSaved.includes(item)))];return shuffle([...selectedExtras,...selectedSaved,...remaining.slice(0,5-selectedExtras.length-selectedSaved.length)]);}
+  function startQuiz(){quizDeck=quizPool();quizIndex=0;answered=false;renderQuiz();renderQuizStats();}
+  function renderQuizSave(word){const button=$('#quiz-save'),saved=hasWord(word.term,word.language||locale);button.hidden=false;button.disabled=saved;button.classList.toggle('saved',saved);button.textContent=saved?t('inLibrary'):t('addQuizWord');}
+  function renderQuiz(){if(!quizDeck.length)quizDeck=quizPool();const word=quizDeck[quizIndex];if(!word)return;answered=false;$('#quiz-position').textContent=`${quizIndex+1} / ${quizDeck.length}`;$('#quiz-definition').textContent=normalizeDefinitions(word)[0];$('#quiz-nature').textContent=word.nature||t(locale==='fr'?'frenchWord':'englishWord');$('#quiz-answer').value='';$('#quiz-answer').disabled=false;$('#quiz-form button[type="submit"]').disabled=false;$('#quiz-give-up').hidden=false;$('#quiz-feedback').textContent='';$('#quiz-feedback').className='quiz-feedback';$('#quiz-save').hidden=true;$('#quiz-next').hidden=true;}
+  function renderQuizStats(){const stats=D.quizStats(documentState.quizAnswers);$('#quiz-rate').textContent=`${stats.rate} %`;$('#quiz-streak').textContent=stats.streak;$('#quiz-total').textContent=stats.attempts;}
+  function answerQuiz(giveUp=false){if(answered)return;answered=true;const word=quizDeck[quizIndex],value=$('#quiz-answer').value,correct=!giveUp&&D.canonical(value)===D.canonical(word.term);documentState.quizAnswers.unshift({id:makeId('answer'),term:word.term,correct,at:now()});if(documentState.quizAnswers.length>2000)documentState.quizAnswers.length=2000;const saved=documentState.words.find(item=>itemLanguage(item)===(word.language||locale)&&D.canonical(item.term)===D.canonical(word.term));if(saved){saved.updated=now();if(correct)saved.learned=true;}save();renderQuizStats();$('#quiz-feedback').textContent=correct?t('exact',{word:word.term}):giveUp?t('giveUp',{word:word.term}):t('wrong',{word:word.term});$('#quiz-feedback').classList.add(correct?'correct':'wrong');$('#quiz-answer').disabled=true;$('#quiz-form button[type="submit"]').disabled=true;$('#quiz-give-up').hidden=true;renderQuizSave(word);$('#quiz-next').hidden=false;}
 
-  function bindEvents() {
-    $$('.nav-link').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.view)));
-    $('[data-view-link]').addEventListener('click',event=>{event.preventDefault();showView('home');});
-    $('.mobile-menu').addEventListener('click',()=>{const open=$('nav').classList.toggle('open');$('.mobile-menu').setAttribute('aria-expanded',String(open));});
-    $('#home-view').addEventListener('click',event=>{const daily=dailyItems();if(event.target.closest('[data-add-daily-word]'))addWord(daily.word);if(event.target.closest('[data-add-daily-expression]'))addExpression(daily.expression);});
-    $('#daily-article').addEventListener('input',event=>{const article=dailyItems().article;if(event.target.matches('[data-article-field]'))upsertArticle(article,{[event.target.dataset.articleField]:event.target.value});if(event.target.matches('[data-article-read]'))upsertArticle(article,{read:event.target.checked});});
-    $('#word-search-form').addEventListener('submit',async event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{renderLookup(await lookup($('#word-search').value));}catch(error){$('#lookup-status').textContent=error.message;}});
-    $('#expression-search-form').addEventListener('submit',event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{lookupExpression($('#expression-search').value);}catch(error){$('#lookup-status').textContent=error.message;}});
-    $$('[data-lookup-tab]').forEach(button=>button.addEventListener('click',()=>setLookupMode(button.dataset.lookupTab)));
-    $$('[data-word-suggestion]').forEach(button=>button.addEventListener('click',()=>{$('#word-search').value=button.dataset.wordSuggestion;$('#word-search-form').requestSubmit();}));
-    $$('[data-expression-suggestion]').forEach(button=>button.addEventListener('click',()=>{$('#expression-search').value=button.dataset.expressionSuggestion;$('#expression-search-form').requestSubmit();}));
-    $$('.library-tabs button').forEach(button=>button.addEventListener('click',()=>{libraryTab=button.dataset.libraryTab;$$('.library-tabs button').forEach(item=>item.setAttribute('aria-selected',String(item===button)));renderLibrary();}));
-    $('#library-search').addEventListener('input',renderLibrary);
-    $('#library-list').addEventListener('input',event=>{if(!event.target.matches('[data-note]'))return;const item=(documentState[libraryTab]||[]).find(value=>value.id===event.target.closest('[data-id]').dataset.id);if(item){item.note=event.target.value;item.updated=now();save();}});
-    $('#library-list').addEventListener('click',event=>{const card=event.target.closest('[data-id]');if(!card)return;const collection=libraryTab==='articles'?documentState.articleNotes:documentState[libraryTab];const item=collection.find(value=>value.id===card.dataset.id);if(!item)return;if(event.target.matches('[data-learned]')){item.learned=!item.learned;item.updated=now();save();renderLibrary();}if(event.target.matches('[data-delete]')){const name=libraryTab==='articles'?'articleNotes':libraryTab;documentState[name]=documentState[name].filter(value=>value.id!==item.id);save();renderLibrary();renderHome();}});
-    $('#quiz-form').addEventListener('submit',event=>{event.preventDefault();answerQuiz();});
-    $('#quiz-give-up').addEventListener('click',()=>answerQuiz(true));
-    $('#quiz-save').addEventListener('click',()=>{const word=quizDeck[quizIndex];if(word&&!hasWord(word.term))addWord(word);if(word)renderQuizSave(word);});
-    $('#quiz-next').addEventListener('click',()=>{quizIndex++;if(quizIndex>=quizDeck.length){quizDeck=quizPool();quizIndex=0;toast('Nouvelle série de cinq mots.');}renderQuiz();$('#quiz-answer').focus();});
-  }
-  function renderAll(){renderHome();renderCounts();if(activeView==='library')renderLibrary();renderQuizStats();}
-  function init(){bindEvents();renderAll();}
-  window.MotApp={read,apply,renderAll};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  function bindEvents(){$$('.nav-link').forEach(button=>button.addEventListener('click',()=>showView(button.dataset.view)));$('[data-view-link]').addEventListener('click',event=>{event.preventDefault();showView('home');});$('#language-switch').addEventListener('click',changeLocale);$('.mobile-menu').addEventListener('click',()=>{const open=$('nav').classList.toggle('open');$('.mobile-menu').setAttribute('aria-expanded',String(open));});$('#home-view').addEventListener('click',event=>{const daily=dailyItems();if(event.target.closest('[data-add-daily-word]'))addWord({...daily.word,language:locale});if(event.target.closest('[data-add-daily-expression]'))addExpression({...daily.expression,language:locale});});$('#daily-article').addEventListener('input',event=>{const article=dailyItems().article;if(event.target.matches('[data-article-field]'))upsertArticle(article,{[event.target.dataset.articleField]:event.target.value});if(event.target.matches('[data-article-read]'))upsertArticle(article,{read:event.target.checked});});$('#word-search-form').addEventListener('submit',async event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{renderLookup(await lookup($('#word-search').value));}catch(error){$('#lookup-status').textContent=error.message;}});$('#expression-search-form').addEventListener('submit',event=>{event.preventDefault();$('#lookup-result').innerHTML='';try{lookupExpression($('#expression-search').value);}catch(error){$('#lookup-status').textContent=error.message;}});$$('[data-lookup-tab]').forEach(button=>button.addEventListener('click',()=>setLookupMode(button.dataset.lookupTab)));$('#search-view').addEventListener('click',event=>{const word=event.target.closest('[data-word-suggestion]'),expression=event.target.closest('[data-expression-suggestion]');if(word){$('#word-search').value=word.dataset.wordSuggestion;$('#word-search-form').requestSubmit();}if(expression){$('#expression-search').value=expression.dataset.expressionSuggestion;$('#expression-search-form').requestSubmit();}});$$('.library-tabs button').forEach(button=>button.addEventListener('click',()=>{libraryTab=button.dataset.libraryTab;$$('.library-tabs button').forEach(item=>item.setAttribute('aria-selected',String(item===button)));renderLibrary();}));$('#library-search').addEventListener('input',renderLibrary);$('#library-list').addEventListener('input',event=>{const card=event.target.closest('[data-id]');if(!card)return;const item=(documentState[libraryTab]||[]).find(value=>value.id===card.dataset.id);if(!item)return;if(event.target.matches('[data-note]')){item.note=event.target.value;item.updated=now();save();}if(event.target.matches('[data-expression-field]')){item[event.target.dataset.expressionField]=event.target.value;item.updated=now();save();}});$('#library-list').addEventListener('change',event=>{if(!event.target.matches('[data-expression-sources-editor]'))return;const card=event.target.closest('[data-id]'),item=documentState.expressions.find(value=>value.id===card.dataset.id);if(!item)return;try{item.sources=parseSources(event.target.value);delete item.sourceUrl;delete item.sourceLabel;item.updated=now();save();renderLibrary();}catch(error){toast(error.message);}});$('#library-list').addEventListener('click',event=>{const card=event.target.closest('[data-id]');if(!card)return;const collection=libraryTab==='articles'?documentState.articleNotes:documentState[libraryTab],item=collection.find(value=>value.id===card.dataset.id);if(!item)return;if(event.target.matches('[data-learned]')){item.learned=!item.learned;item.updated=now();save();renderLibrary();}if(event.target.matches('[data-delete]')){const name=libraryTab==='articles'?'articleNotes':libraryTab;documentState[name]=documentState[name].filter(value=>value.id!==item.id);save();renderLibrary();renderHome();}});$('#quiz-form').addEventListener('submit',event=>{event.preventDefault();answerQuiz();});$('#quiz-give-up').addEventListener('click',()=>answerQuiz(true));$('#quiz-save').addEventListener('click',()=>{const word=quizDeck[quizIndex];if(word&&!hasWord(word.term,word.language||locale))addWord(word);if(word)renderQuizSave(word);});$('#quiz-next').addEventListener('click',()=>{quizIndex++;if(quizIndex>=quizDeck.length){quizDeck=quizPool();quizIndex=0;toast(t('newSeries'));}renderQuiz();$('#quiz-answer').focus();});}
+  function renderAll(){renderHome();renderCounts();if(activeView==='library')renderLibrary();if(activeView==='quiz'&&quizDeck.length)renderQuiz();renderQuizStats();}
+  function init(){applyLocale();bindEvents();renderAll();}
+  window.MotApp={read,apply,renderAll,getLocale:()=>locale};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();

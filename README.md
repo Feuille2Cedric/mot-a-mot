@@ -1,16 +1,17 @@
 # Mot à mot
 
-Carnet personnel de vocabulaire et de curiosité, en français. Un mot, une expression et une donnée à découvrir chaque jour, avec une bibliothèque privée et un jeu de définitions.
+Carnet personnel bilingue de vocabulaire et de curiosité. Un mot, une expression et une donnée à découvrir chaque jour, avec une bibliothèque privée et un jeu de définitions.
 
 **Site : https://feuille2cedric.github.io/mot-a-mot/**
 
 ## Utilisation
 
-- Chercher un mot français, lire ses définitions puis l’ajouter à sa bibliothèque.
-- Rechercher une expression, un proverbe ou une citation même avec une formulation approchante. Une expression absente du corpus peut être gardée avec une explication personnelle.
+- Passer de la version française à la version anglaise ; la recherche utilise le Wiktionnaire correspondant et chaque fiche conserve sa langue.
+- Chercher un mot, lire toutes ses définitions puis l’ajouter à sa bibliothèque. Le quiz n’affiche que la première définition.
+- Rechercher une expression, un proverbe ou une citation même avec une formulation approchante. Un ajout personnel peut être classé comme expression ou citation, attribué à une personne et associé à plusieurs liens sources.
 - Garder le mot et l’expression du jour, écrire une note personnelle et indiquer ce qui est acquis ou reste à revoir.
 - Lire une capsule statistique issue d’une publication officielle, ouvrir sa source, rédiger un résumé ou un commentaire et la conserver dans ses lectures.
-- Lancer un quiz de cinq définitions. Les mots enregistrés sont proposés en priorité ; les accents et la ponctuation ne pénalisent pas la réponse.
+- Lancer un quiz de cinq définitions qui mélange les mots enregistrés avec au moins deux nouvelles découvertes quand le corpus le permet. Les accents et la ponctuation ne pénalisent pas la réponse.
 - Suivre son taux de réussite, son nombre de réponses et sa série de jours actifs.
 
 L’application fonctionne sans compte. Les données restent alors dans le navigateur utilisé.

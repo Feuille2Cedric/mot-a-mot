@@ -8,45 +8,46 @@
   <title>Mot à mot — Chaque jour compte.</title>
   <link rel="icon" href="favicon.svg">
   <link rel="stylesheet" href="sync/sync.css">
-  <link rel="stylesheet" href="style.css?v=20261104-4">
+  <link rel="stylesheet" href="style.css?v=20261105-1">
   <script src="sync/supabase.js" defer></script>
   <script src="sync/config.js" defer></script>
   <script src="sync/auth.js" defer></script>
   <script src="sync/sync.js" defer></script>
-  <script src="content.js?v=20261104-2" defer></script>
+  <script src="content.js?v=20261105-1" defer></script>
   <script src="domain.js" defer></script>
-  <script src="app.js?v=20261104-4" defer></script>
+  <script src="app.js?v=20261105-1" defer></script>
   <script src="sync/adapter.js" defer></script>
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="#accueil" data-view-link="home" aria-label="Mot à mot, accueil"><span>M</span><strong>Mot à mot</strong></a>
     <nav aria-label="Navigation principale">
-      <button class="nav-link active" data-view="home">Aujourd’hui</button>
-      <button class="nav-link" data-view="search">Chercher</button>
-      <button class="nav-link" data-view="library">Ma bibliothèque <span id="nav-count">0</span></button>
+      <button class="nav-link active" data-view="home" data-i18n="navToday">Aujourd’hui</button>
+      <button class="nav-link" data-view="search" data-i18n="navSearch">Chercher</button>
+      <button class="nav-link" data-view="library"><span data-i18n="navLibrary">Ma bibliothèque</span> <span id="nav-count">0</span></button>
       <button class="nav-link" data-view="quiz">Quiz</button>
     </nav>
-    <button class="mobile-menu" type="button" aria-label="Afficher le menu" aria-expanded="false">Menu</button>
+    <button id="language-switch" class="language-switch" type="button" aria-label="Passer en anglais">EN</button>
+    <button class="mobile-menu" type="button" aria-label="Afficher le menu" aria-expanded="false" data-i18n="menu">Menu</button>
   </header>
 
   <main>
     <section id="home-view" class="view">
       <div class="hero">
         <p class="eyebrow" id="today-label"></p>
-        <h1>Une idée à retenir.<br><em>Chaque jour.</em></h1>
-        <p class="hero-copy">Enrichis ton vocabulaire, comprends une expression et garde une statistique qui mérite d’être racontée.</p>
+        <h1><span data-i18n="heroTitle">Une idée à retenir.</span><br><em data-i18n="heroEveryDay">Chaque jour.</em></h1>
+        <p class="hero-copy" data-i18n="heroCopy">Enrichis ton vocabulaire, comprends une expression et garde une statistique qui mérite d’être racontée.</p>
         <div class="day-progress" aria-label="Rituel du jour"><span id="day-progress-fill"></span></div>
-        <p class="day-progress-label"><strong id="day-progress-count">0/3</strong> découvertes gardées aujourd’hui</p>
+        <p class="day-progress-label"><strong id="day-progress-count">0/3</strong> <span data-i18n="discoveriesSaved">découvertes gardées aujourd’hui</span></p>
       </div>
 
       <div class="daily-grid">
         <article class="daily-card word-card">
-          <div class="card-topline"><span>Le mot du jour</span><small>01</small></div>
+          <div class="card-topline"><span data-i18n="dailyWord">Le mot du jour</span><small>01</small></div>
           <div id="daily-word"></div>
         </article>
         <article class="daily-card expression-card">
-          <div class="card-topline"><span>L’expression du jour</span><small>02</small></div>
+          <div class="card-topline"><span data-i18n="dailyExpression">L’expression du jour</span><small>02</small></div>
           <div id="daily-expression"></div>
         </article>
       </div>
@@ -56,37 +57,37 @@
 
     <section id="search-view" class="view" hidden>
       <div class="section-intro">
-        <p class="eyebrow">Le dictionnaire vivant</p>
-        <h2>Un mot ou une expression t’échappe ?</h2>
-        <p>Cherche une définition, une expression ou une citation, puis garde-la pour la revoir plus tard.</p>
+        <p class="eyebrow" data-i18n="livingDictionary">Le dictionnaire vivant</p>
+        <h2 data-i18n="searchTitle">Un mot ou une expression t’échappe ?</h2>
+        <p data-i18n="searchCopy">Cherche une définition, une expression ou une citation, puis garde-la pour la revoir plus tard.</p>
       </div>
       <div class="lookup-tabs" role="tablist" aria-label="Type de recherche">
-        <button type="button" role="tab" data-lookup-tab="word" aria-selected="true">Mot</button>
-        <button type="button" role="tab" data-lookup-tab="expression" aria-selected="false">Expression ou citation</button>
+        <button type="button" role="tab" data-lookup-tab="word" aria-selected="true" data-i18n="word">Mot</button>
+        <button type="button" role="tab" data-lookup-tab="expression" aria-selected="false" data-i18n="expressionOrQuote">Expression ou citation</button>
       </div>
       <form id="word-search-form" class="lookup-form">
-        <label><span>Mot français</span><input id="word-search" type="search" required maxlength="80" autocomplete="off" placeholder="Ex. perspicace"></label>
-        <button class="button primary" type="submit">Chercher</button>
+        <label><span data-i18n="wordLabel">Mot français</span><input id="word-search" type="search" required maxlength="80" autocomplete="off" placeholder="Ex. perspicace" data-i18n-placeholder="wordPlaceholder"></label>
+        <button class="button primary" type="submit" data-i18n="search">Chercher</button>
       </form>
       <form id="expression-search-form" class="lookup-form" hidden>
-        <label><span>Expression, proverbe ou citation</span><input id="expression-search" type="search" required maxlength="240" autocomplete="off" placeholder="Ex. La violence institutionnelle est mère de toutes les autres"></label>
-        <button class="button primary" type="submit">Chercher</button>
+        <label><span data-i18n="expressionLabel">Expression, proverbe ou citation</span><input id="expression-search" type="search" required maxlength="240" autocomplete="off" placeholder="Ex. La violence institutionnelle est mère de toutes les autres" data-i18n-placeholder="expressionPlaceholder"></label>
+        <button class="button primary" type="submit" data-i18n="search">Chercher</button>
       </form>
       <p id="lookup-status" class="status" role="status"></p>
       <div id="lookup-result"></div>
-      <div class="search-suggestions" data-word-suggestions><span>À essayer</span><button data-word-suggestion="sagace">sagace</button><button data-word-suggestion="liminaire">liminaire</button><button data-word-suggestion="ineffable">ineffable</button></div>
-      <div class="search-suggestions" data-expression-suggestions hidden><span>À essayer</span><button data-expression-suggestion="appeler un chat un chat">appeler un chat un chat</button><button data-expression-suggestion="violence institutionnelle">violence institutionnelle</button></div>
+      <div class="search-suggestions" data-word-suggestions><span data-i18n="tryThese">À essayer</span><span data-suggestion-buttons></span></div>
+      <div class="search-suggestions" data-expression-suggestions hidden><span data-i18n="tryThese">À essayer</span><span data-suggestion-buttons></span></div>
     </section>
 
     <section id="library-view" class="view" hidden>
       <div class="section-intro library-heading">
-        <div><p class="eyebrow">Ton carnet personnel</p><h2>Ma bibliothèque</h2><p>Tout ce que tu as décidé de ne pas oublier.</p></div>
-        <label class="library-search"><span>Rechercher</span><input id="library-search" type="search" placeholder="Dans mes notes…"></label>
+        <div><p class="eyebrow" data-i18n="personalNotebook">Ton carnet personnel</p><h2 data-i18n="myLibrary">Ma bibliothèque</h2><p data-i18n="libraryCopy">Tout ce que tu as décidé de ne pas oublier.</p></div>
+        <label class="library-search"><span data-i18n="search">Rechercher</span><input id="library-search" type="search" placeholder="Dans mes notes…" data-i18n-placeholder="notesPlaceholder"></label>
       </div>
       <div class="library-tabs" role="tablist">
-        <button role="tab" data-library-tab="words" aria-selected="true">Mots <span id="words-count">0</span></button>
-        <button role="tab" data-library-tab="expressions" aria-selected="false">Expressions <span id="expressions-count">0</span></button>
-        <button role="tab" data-library-tab="articles" aria-selected="false">Lectures <span id="articles-count">0</span></button>
+        <button role="tab" data-library-tab="words" aria-selected="true"><span data-i18n="words">Mots</span> <span id="words-count">0</span></button>
+        <button role="tab" data-library-tab="expressions" aria-selected="false"><span data-i18n="expressions">Expressions</span> <span id="expressions-count">0</span></button>
+        <button role="tab" data-library-tab="articles" aria-selected="false"><span data-i18n="readings">Lectures</span> <span id="articles-count">0</span></button>
       </div>
       <div id="library-list" class="library-list"></div>
     </section>
@@ -94,20 +95,20 @@
     <section id="quiz-view" class="view" hidden>
       <div class="quiz-layout">
         <div class="quiz-copy">
-          <p class="eyebrow">Le jeu des définitions</p>
-          <h2>Retrouve le mot.</h2>
-          <p>Les mots de ta bibliothèque passent en premier. Les accents ne comptent pas, la mémoire oui.</p>
-          <div class="quiz-stats"><div><strong id="quiz-rate">0 %</strong><span>de réussite</span></div><div><strong id="quiz-streak">0</strong><span>jours de suite</span></div><div><strong id="quiz-total">0</strong><span>réponses</span></div></div>
+          <p class="eyebrow" data-i18n="definitionGame">Le jeu des définitions</p>
+          <h2 data-i18n="findWord">Retrouve le mot.</h2>
+          <p data-i18n="quizCopy">La série mélange tes mots et de nouvelles découvertes. Les accents ne comptent pas, la mémoire oui.</p>
+          <div class="quiz-stats"><div><strong id="quiz-rate">0 %</strong><span data-i18n="successRate">de réussite</span></div><div><strong id="quiz-streak">0</strong><span data-i18n="dayStreak">jours de suite</span></div><div><strong id="quiz-total">0</strong><span data-i18n="answers">réponses</span></div></div>
         </div>
         <article class="quiz-card">
-          <div class="quiz-meta"><span>Définition</span><small id="quiz-position">1 / 5</small></div>
+          <div class="quiz-meta"><span data-i18n="definition">Définition</span><small id="quiz-position">1 / 5</small></div>
           <blockquote id="quiz-definition"></blockquote>
           <p id="quiz-nature" class="quiz-nature"></p>
-          <form id="quiz-form"><label for="quiz-answer">Quel est ce mot ?</label><div><input id="quiz-answer" autocomplete="off" required><button class="button primary" type="submit">Valider</button></div><button id="quiz-give-up" type="button">Je ne sais pas</button></form>
+          <form id="quiz-form"><label for="quiz-answer" data-i18n="whatWord">Quel est ce mot ?</label><div><input id="quiz-answer" autocomplete="off" required><button class="button primary" type="submit" data-i18n="validate">Valider</button></div><button id="quiz-give-up" type="button" data-i18n="dontKnow">Je ne sais pas</button></form>
           <div id="quiz-feedback" class="quiz-feedback" role="status"></div>
           <div class="quiz-actions">
-            <button id="quiz-save" class="button secondary" type="button" hidden>+ Ajouter ce mot à ma bibliothèque</button>
-            <button id="quiz-next" class="button secondary" type="button" hidden>Mot suivant →</button>
+            <button id="quiz-save" class="button secondary" type="button" hidden></button>
+            <button id="quiz-next" class="button secondary" type="button" hidden data-i18n="nextWord">Mot suivant →</button>
           </div>
         </article>
       </div>
@@ -115,6 +116,6 @@
   </main>
 
   <div id="toast" role="status" aria-live="polite" hidden></div>
-  <footer><span>Mot à mot</span><p>Les mots ouvrent des mondes.</p><a href="https://fr.wiktionary.org/" target="_blank" rel="noopener">Wiktionnaire ↗</a><a href="https://www.insee.fr/" target="_blank" rel="noopener">INSEE ↗</a></footer>
+  <footer><span>Mot à mot</span><p data-i18n="footerPhrase">Les mots ouvrent des mondes.</p><a id="footer-wiktionary" href="https://fr.wiktionary.org/" target="_blank" rel="noopener">Wiktionnaire ↗</a><a href="https://www.insee.fr/" target="_blank" rel="noopener">INSEE ↗</a></footer>
 </body>
 </html>

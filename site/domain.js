@@ -66,10 +66,21 @@
 
     document.words.forEach(item => {
       text(item.term, 'Mot', 120); text(item.definition, 'Définition'); text(item.note || '', 'Note');
+      if (item.definitions !== undefined) {
+        if (!Array.isArray(item.definitions) || item.definitions.length > 200) throw Error('Définitions invalides.');
+        item.definitions.forEach(value => text(value, 'Définition'));
+      }
+      if (item.language !== undefined && !['fr', 'en'].includes(item.language)) throw Error('Langue de mot invalide.');
       if (!Number.isFinite(item.addedAt) || !Number.isFinite(item.updated)) throw Error('Date de mot invalide.');
     });
     document.expressions.forEach(item => {
       text(item.expression, 'Expression', 240); text(item.meaning, 'Sens'); text(item.note || '', 'Note');
+      text(item.author || '', 'Auteur', 240); text(item.type || '', 'Type', 30);
+      if (item.language !== undefined && !['fr', 'en'].includes(item.language)) throw Error('Langue d’expression invalide.');
+      if (item.sources !== undefined) {
+        if (!Array.isArray(item.sources) || item.sources.length > 20) throw Error('Sources invalides.');
+        item.sources.forEach(source => { if (!source || typeof source !== 'object') throw Error('Source invalide.'); text(source.url, 'Lien source', 2000); text(source.label || '', 'Nom de source', 240); });
+      }
       if (!Number.isFinite(item.addedAt) || !Number.isFinite(item.updated)) throw Error('Date d’expression invalide.');
     });
     document.articleNotes.forEach(item => {

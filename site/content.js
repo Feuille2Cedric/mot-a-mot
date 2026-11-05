@@ -59,3 +59,35 @@ window.MotContent = {
     { id:'insee:8739245', source:'Insee', publication:'Insee Focus', date:'février 2026', stat:'1 sur 3', title:'Une personne sur trois manque de compétences numériques', summary:'En 2025, 34 % des 16-74 ans manquent de compétences numériques de base. L’étude examine les écarts d’âge, la maîtrise des logiciels, la vie privée et l’usage de l’intelligence artificielle.', url:'https://www.insee.fr/fr/statistiques/8739245', theme:'Numérique', minutes:9 }
   ]
 };
+
+window.MotContentEnglish = {
+  words: [
+    { id:'word:en:serendipity', term:'serendipity', nature:'noun', definition:'The pleasant discovery of something valuable or interesting by chance.', example:'Finding that quiet bookshop was pure serendipity.' },
+    { id:'word:en:eloquent', term:'eloquent', nature:'adjective', definition:'Fluent, persuasive, and graceful in expression.', example:'She gave an eloquent account of the project.' },
+    { id:'word:en:ephemeral', term:'ephemeral', nature:'adjective', definition:'Lasting for only a very short time.', example:'The installation was beautiful but ephemeral.' },
+    { id:'word:en:meticulous', term:'meticulous', nature:'adjective', definition:'Showing great attention to every detail.', example:'His meticulous notes made the handover easy.' },
+    { id:'word:en:ubiquitous', term:'ubiquitous', nature:'adjective', definition:'Present, appearing, or found everywhere.', example:'Smartphones have become ubiquitous.' },
+    { id:'word:en:resilient', term:'resilient', nature:'adjective', definition:'Able to recover quickly from difficulty or change.', example:'The community proved remarkably resilient.' },
+    { id:'word:en:ambiguous', term:'ambiguous', nature:'adjective', definition:'Open to more than one interpretation; not having one obvious meaning.', example:'The final sentence was deliberately ambiguous.' },
+    { id:'word:en:pragmatic', term:'pragmatic', nature:'adjective', definition:'Dealing with problems in a practical way rather than relying on theory.', example:'They adopted a pragmatic solution.' },
+    { id:'word:en:benevolent', term:'benevolent', nature:'adjective', definition:'Kind, generous, and intending to do good.', example:'A benevolent donor funded the library.' },
+    { id:'word:en:candid', term:'candid', nature:'adjective', definition:'Truthful and straightforward; frank.', example:'We had a candid conversation about the risks.' },
+    { id:'word:en:lucid', term:'lucid', nature:'adjective', definition:'Expressed clearly and easy to understand.', example:'Her lucid explanation settled the question.' },
+    { id:'word:en:tenacious', term:'tenacious', nature:'adjective', definition:'Persistent and determined; not giving up easily.', example:'The tenacious reporter kept investigating.' },
+    { id:'word:en:whimsical', term:'whimsical', nature:'adjective', definition:'Playfully unusual, imaginative, or fanciful.', example:'The room was filled with whimsical drawings.' },
+    { id:'word:en:poignant', term:'poignant', nature:'adjective', definition:'Evoking a strong feeling of sadness or reflection.', example:'The final scene was quiet and poignant.' },
+    { id:'word:en:concise', term:'concise', nature:'adjective', definition:'Giving much information clearly in few words.', example:'Keep the introduction concise.' }
+  ],
+  expressions: [
+    { id:'expression:en:break-the-ice', expression:'Break the ice', meaning:'To make people feel more comfortable when meeting or beginning a conversation.', origin:'The image evokes breaking a frozen surface so that movement can begin.', type:'expression' },
+    { id:'expression:en:hit-the-nail', expression:'Hit the nail on the head', meaning:'To describe exactly what is causing a situation or problem.', origin:'A precise hammer strike lands directly on the nail.', type:'expression' },
+    { id:'expression:en:blue-moon', expression:'Once in a blue moon', meaning:'Very rarely.', origin:'A blue moon is an unusual calendrical occurrence.', type:'expression' },
+    { id:'expression:en:spill-the-beans', expression:'Spill the beans', meaning:'To reveal secret information.', origin:'Its exact historical origin is uncertain.', type:'expression' },
+    { id:'expression:en:bite-the-bullet', expression:'Bite the bullet', meaning:'To face a difficult or unpleasant situation with courage.', origin:'Traditionally linked to enduring pain during medical treatment.', type:'expression' },
+    { id:'expression:en:under-the-weather', expression:'Under the weather', meaning:'Feeling unwell or in low spirits.', origin:'Often associated with the effect of rough weather at sea.', type:'expression' },
+    { id:'expression:en:blessing-disguise', expression:'A blessing in disguise', meaning:'Something that seems unfortunate at first but later proves beneficial.', origin:'The phrase contrasts outward appearance with a hidden benefit.', type:'expression' },
+    { id:'expression:en:call-it-a-day', expression:'Call it a day', meaning:'To stop working on something for the rest of the day.', origin:'To declare that the day’s work is complete.', type:'expression' },
+    { id:'expression:en:your-court', expression:'The ball is in your court', meaning:'It is now your responsibility to act or decide.', origin:'A metaphor drawn from tennis.', type:'expression' },
+    { id:'expression:en:midnight-oil', expression:'Burn the midnight oil', meaning:'To work or study late into the night.', origin:'Before electric light, an oil lamp enabled late-night work.', type:'expression' }
+  ]
+};
