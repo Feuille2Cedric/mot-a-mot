@@ -178,6 +178,7 @@ try:
 
         page.locator('#language-switch').click()
         assert page.locator('[data-view="home"]').inner_text() == 'Today'
+        assert page.evaluate("MotContentEnglish.articles.some(article => article.title === document.querySelector('#daily-article h2').textContent)")
         assert page.locator('#word-search').get_attribute('placeholder') == 'E.g. perspicacious'
         page.locator('[data-view="search"]').click()
         page.locator('[data-lookup-tab="word"]').click()
